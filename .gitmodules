@@ -1,0 +1,3 @@
+[submodule "extern/pcem"]
+	path = extern/pcem
+	url = https://github.com/TASEmulators/pcem.git
