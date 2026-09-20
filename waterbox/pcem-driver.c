@@ -72,6 +72,10 @@ extern int model_count(void);
 extern int model_get_model_from_internal_name(char *name);
 extern char *model_get_internal_name_ex(int model);
 extern int video_get_video_from_internal_name(char *name);
+extern char *mouse_get_name(int mouse);
+extern char *joystick_get_name(int joystick);
+#include "cpu.h"
+#include "model.h"
 
 /* ------------------------------------------------------------- our state */
 
@@ -282,6 +286,78 @@ static const char *slot_file(const char *id, char *out, int outsz)
         return n;
 }
 
+/* Every enum whose value is one of PCem's internal ids is shown to the user
+ * as "internal - Display", because a 93-entry list of bare ids is unreadable.
+ * The id is the part before the first " - ". */
+static const char *bare(const char *labelled, char *out, int outsz)
+{
+        const char *dash = strstr(labelled, " - ");
+        int n = dash ? (int)(dash - labelled) : (int)strlen(labelled);
+        if (n > outsz - 1) n = outsz - 1;
+        memcpy(out, labelled, (size_t)n);
+        out[n] = 0;
+        return out;
+}
+
+static const char *setting_bare(const char *key, const char *dflt,
+                                char *out, int outsz)
+{
+        char raw[256];
+        drv_setting_str(key, dflt, raw, sizeof raw);
+        return bare(raw, out, outsz);
+}
+
+/* Resolve a name against a list PCem itself reports, so the declared options
+ * and the emulator cannot drift apart. -1 when the name is not in the list. */
+static int index_of_name(char *(*get)(int), const char *want, int limit)
+{
+        int i;
+        for (i = 0; i < limit; i++) {
+                char *n = get(i);
+                if (!n) break;
+                if (!strcmp(n, want)) return i;
+        }
+        return -1;
+}
+
+/* The CPU is picked BY NAME out of every CPU PCem has. Which manufacturer
+ * table of the chosen machine holds it is looked up here, so the user never
+ * types an index and never picks a manufacturer. */
+static int resolve_cpu(int model, const char *want, int *manufacturer, int *cpu)
+{
+        int m, c;
+        for (m = 0; m < 4; m++) {
+                CPU *list = models[model].cpu[m].cpus;
+                if (!list) continue;
+                for (c = 0; list[c].cpu_type != -1 && list[c].name[0]; c++) {
+                        if (!strcmp(list[c].name, want)) {
+                                *manufacturer = m;
+                                *cpu = c;
+                                return 1;
+                        }
+                }
+        }
+        return 0;
+}
+
+/* What this machine WILL take, for the error message. A list of what is
+ * wrong is worth more than "invalid". */
+static void cpu_choices(int model, char *out, int outsz)
+{
+        int m, c, n = 0;
+        out[0] = 0;
+        for (m = 0; m < 4; m++) {
+                CPU *list = models[model].cpu[m].cpus;
+                if (!list) continue;
+                for (c = 0; list[c].cpu_type != -1 && list[c].name[0]; c++) {
+                        int len = snprintf(out + n, (size_t)(outsz - n),
+                                           "%s%s", n ? ", " : "", list[c].name);
+                        if (len < 0 || n + len >= outsz - 4) { strcpy(out + n, ", ..."); return; }
+                        n += len;
+                }
+        }
+}
+
 static void compose_cfg(void)
 {
         char buf[256];
@@ -290,24 +366,33 @@ static void compose_cfg(void)
 
         g_cfgLen = 0;
 
-        cfg_add("model = %s\n", drv_setting_str("machine", "ibmat", buf, sizeof buf));
-        cfg_add("cpu_manufacturer = %d\n", drv_setting_int("cpuManufacturer", 0));
-        cfg_add("cpu = %d\n", drv_setting_int("cpu", 0));
+        cfg_add("model = %s\n", setting_bare("machine", "ibmat", buf, sizeof buf));
+        /* cpu_manufacturer and cpu are written by apply_cpu() after initpc has
+         * resolved the model, because the name has to be looked up in THAT
+         * machine's tables. */
         cfg_add("fpu = %s\n", drv_setting_str("fpu", "none", buf, sizeof buf));
         cfg_add("cpu_use_dynarec = %d\n", wbx_setting_bool("dynarec", 1) ? 1 : 0);
         cfg_add("cpu_waitstates = %d\n", drv_setting_int("cpuWaitStates", 0));
         cfg_add("mem_size = %d\n", drv_setting_int("memSizeKB", 4096));
 
-        cfg_add("gfxcard = %s\n", drv_setting_str("videoCard", "vga", buf, sizeof buf));
-        cfg_add("video_speed = %d\n", drv_setting_int("videoSpeed", -1));
+        cfg_add("gfxcard = %s\n", setting_bare("videoCard", "vga", buf, sizeof buf));
+        {
+                static const char *speeds[] = {"default", "8-bit 8MHz", "16-bit 8MHz",
+                        "16-bit 12MHz", "16-bit 16MHz", "Fast VLB/PCI"};
+                char v[64];
+                int i, sel = -1;
+                drv_setting_str("videoSpeed", "default", v, sizeof v);
+                for (i = 0; i < 6; i++) if (!strcmp(speeds[i], v)) { sel = i - 1; break; }
+                cfg_add("video_speed = %d\n", sel);
+        }
         cfg_add("voodoo = %d\n", wbx_setting_bool("voodoo", 0) ? 1 : 0);
 
-        cfg_add("sndcard = %s\n", drv_setting_str("soundCard", "none", buf, sizeof buf));
+        cfg_add("sndcard = %s\n", setting_bare("soundCard", "none", buf, sizeof buf));
         cfg_add("gameblaster = %d\n", wbx_setting_bool("gameBlaster", 0) ? 1 : 0);
         cfg_add("gus = %d\n", wbx_setting_bool("gus", 0) ? 1 : 0);
         cfg_add("ssi2001 = %d\n", wbx_setting_bool("ssi2001", 0) ? 1 : 0);
 
-        cfg_add("hdd_controller = %s\n", drv_setting_str("hddController", "none", buf, sizeof buf));
+        cfg_add("hdd_controller = %s\n", setting_bare("hddController", "none", buf, sizeof buf));
 
         /* Drive C: and D:. Geometry 0 means "derive from the image", which
          * PCem's own new-disk dialog does by file size. */
@@ -326,8 +411,19 @@ static void compose_cfg(void)
 
         if ((fn = slot_file(PCEM_SLOT_FLOPPY_A, slot, sizeof slot))) cfg_add("disc_a = %s\n", fn);
         if ((fn = slot_file(PCEM_SLOT_FLOPPY_B, slot, sizeof slot))) cfg_add("disc_b = %s\n", fn);
-        cfg_add("drive_a_type = %d\n", drv_setting_int("driveAType", 7));
-        cfg_add("drive_b_type = %d\n", drv_setting_int("driveBType", 2));
+        {
+                static const char *fdd[] = {"None", "5.25\" 360k", "5.25\" 1.2M",
+                        "5.25\" 1.2M Dual RPM", "3.5\" 720k", "3.5\" 1.44M",
+                        "3.5\" 1.44M 3-Mode", "3.5\" 2.88M"};
+                char v[64];
+                int i, a = 7, b = 2;
+                drv_setting_str("driveAType", "3.5\" 2.88M", v, sizeof v);
+                for (i = 0; i < 8; i++) if (!strcmp(fdd[i], v)) { a = i; break; }
+                drv_setting_str("driveBType", "5.25\" 1.2M", v, sizeof v);
+                for (i = 0; i < 8; i++) if (!strcmp(fdd[i], v)) { b = i; break; }
+                cfg_add("drive_a_type = %d\n", a);
+                cfg_add("drive_b_type = %d\n", b);
+        }
         cfg_add("bpb_disable = %d\n", wbx_setting_bool("bpbDisable", 0) ? 1 : 0);
 
         /* The CD-ROM. cdrom_drive 200 is "an image"; 0 is "no drive". Leaving
@@ -345,8 +441,16 @@ static void compose_cfg(void)
         }
         cfg_add("zip_channel = -1\n");
 
-        cfg_add("mouse_type = %d\n", drv_setting_int("mouseType", 0));
-        cfg_add("joystick_type = %d\n", drv_setting_int("joystickType", 0));
+        {
+                char v[128];
+                int i;
+                drv_setting_str("mouseType", "Microsoft 2-button mouse (serial)", v, sizeof v);
+                i = index_of_name(mouse_get_name, v, 16);
+                cfg_add("mouse_type = %d\n", i < 0 ? 0 : i);
+                drv_setting_str("joystickType", "Standard 2-button joystick(s)", v, sizeof v);
+                i = index_of_name(joystick_get_name, v, 16);
+                cfg_add("joystick_type = %d\n", i < 0 ? 0 : i);
+        }
         cfg_add("lpt1_device = %s\n", drv_setting_str("lpt1Device", "none", buf, sizeof buf));
 
         /* The one host-clock seam PCem has (rtc.c:227-238) is enable_sync,
@@ -396,6 +500,27 @@ ECL_EXPORT int Init(void)
 
         argv[0] = "pcem"; argv[1] = "--config"; argv[2] = PCEM_CFG_NAME;
         initpc(3, argv);
+
+        /* The CPU is chosen BY NAME out of every CPU PCem has, so it has to be
+         * resolved against the machine initpc just settled on. A CPU this
+         * machine does not take is refused here, by name, with the list of the
+         * ones it does - which is more use than a silent fallback to whatever
+         * index 0 happens to be. */
+        {
+                char want[128];
+                extern int model, cpu_manufacturer, cpu;
+                drv_setting_str("cpu", "286/6", want, sizeof want);
+                if (!resolve_cpu(model, want, &cpu_manufacturer, &cpu)) {
+                        char choices[768];
+                        cpu_choices(model, choices, sizeof choices);
+                        snprintf(g_loadError, sizeof g_loadError,
+                                 "this machine does not take a '%s'. It takes: %s",
+                                 want, choices);
+                        return 0;
+                }
+                cpu_set();
+        }
+
         resetpchard();
         sound_init();
         fullspeed();

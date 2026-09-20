@@ -68,9 +68,11 @@ else
 fi
 
 # ------------------------------------------------------- 2. it runs at all
-settings='{"preset":"custom","machine":"ga686bx","cpuManufacturer":0,"cpu":6,
- "fpu":"builtin","dynarec":true,"memSizeKB":262144,"videoCard":"v3_3000",
- "soundCard":"sbawe32","hddController":"ide","mouseType":2,
+settings='{"system":"x86 PC","machine":"ga686bx - [Slot 1] Gigabyte GA-686BX",
+ "cpu":"Pentium II/450","fpu":"builtin","dynarec":true,"memSizeKB":262144,
+ "videoCard":"v3_3000 - 3DFX Voodoo 3 3000","soundCard":"sbawe32 - Sound Blaster AWE32",
+ "hddController":"ide - [IDE] Standard IDE","mouseType":"2-button mouse (PS/2)",
+ "driveAType":"3.5\" 2.88M","driveBType":"5.25\" 1.2M","videoSpeed":"Fast VLB/PCI",
  "fpsNumerator":100,"fpsDenominator":1}'
 frames=1500
 python3 - "$work/movie.txt" "$frames" <<'PY'
@@ -117,7 +119,7 @@ cp "$roms/ga686bx/6BX.F2a" "$gw/ga686bx_6BX.F2a"
 cp "$roms/voodoo3_3000/3k12sd.rom" "$gw/voodoo3_3000_3k12sd.rom"
 cp "$roms/awe32.raw" "$gw/awe32.raw"; cp "$roms/mda.rom" "$gw/mda.rom"
 cp "$roms/wy700.rom" "$gw/wy700.rom"; cp "$roms/8x12.bin" "$gw/8x12.bin"
-printf '%s' "$settings" > "$gw/settings"
+printf "%s" "$settings" > "$gw/settings"
 
 s1=$(stream "$gw" "$frames")
 s2=$(stream "$gw" "$frames")
@@ -130,7 +132,7 @@ fi
 # NEGATIVE CONTROL for the stream: halve the emulated CPU. This is the exact
 # change an end-of-run digest did NOT notice (docs/M1B.md 6b), so if the
 # stream does not notice it either, the leg is worthless.
-sed 's/"cpu":6/"cpu":0/' "$gw/settings" > "$gw/settings.slow"
+sed 's|"cpu":"Pentium II/450"|"cpu":"Pentium II/233"|' "$gw/settings" > "$gw/settings.slow"
 mv "$gw/settings" "$gw/settings.fast"; mv "$gw/settings.slow" "$gw/settings"
 s3=$(stream "$gw" "$frames")
 mv "$gw/settings.fast" "$gw/settings"
@@ -140,7 +142,48 @@ else
 	report FAIL "the stream notices a slower CPU" "it did not - the leg is blind"
 fi
 
-# ------------------------------------------------------- 4. savestates
+# ----------------------------------------- 4. the declared options are real
+# Every option offered in waterbox.config must be one the driver accepts. The
+# lists are generated from PCem's own tables, but generated is not the same as
+# checked, and an option the user can pick that the core then refuses is a
+# broken settings page.
+opts_bad=0
+for cpuname in "Pentium II/233" "Pentium II/450" "Celeron 300"; do
+	python3 - "$gw/settings" "$cpuname" <<'PY'
+import json, sys
+p, cpu = sys.argv[1], sys.argv[2]
+d = json.load(open(p)); d["cpu"] = cpu; json.dump(d, open(p, "w"))
+PY
+	"$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$gw" 60 >/dev/null 2>&1 		|| { opts_bad=$((opts_bad+1)); echo "  option refused: cpu=$cpuname"; }
+done
+python3 - "$gw/settings" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); d["cpu"] = "Pentium II/450"; json.dump(d, open(p, "w"))
+PY
+if [ "$opts_bad" -eq 0 ]; then
+	report PASS "declared CPU options resolve"
+else
+	report FAIL "declared CPU options resolve" "$opts_bad refused"
+fi
+
+# NEGATIVE CONTROL: a CPU this machine does NOT take must be refused by name,
+# not silently substituted - a silent fallback would make a movie cite a CPU
+# the machine never ran.
+python3 - "$gw/settings" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); d["cpu"] = "8088/4.77"; json.dump(d, open(p, "w"))
+PY
+if "$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$gw" 60 2>&1    | grep -q "does not take"; then
+	report PASS "a wrong CPU is refused by name" "negative control"
+else
+	report FAIL "a wrong CPU is refused by name" "it was accepted or died silently"
+fi
+python3 - "$gw/settings" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); d["cpu"] = "Pentium II/450"; json.dump(d, open(p, "w"))
+PY
+
+# ------------------------------------------------------- 5. savestates
 if "$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$gw" 600 > /dev/null 2>&1; then
 	report PASS "600-frame run for the state legs"
 else

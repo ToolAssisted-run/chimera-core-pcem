@@ -126,12 +126,15 @@ int main(int argc, char **argv)
 
         if (!((intfn)proc(h, "Init", 1))()) {
                 strfn GetLoadError = (strfn)proc(h, "GetLoadError", 0);
+                const char *msg = GetLoadError ? GetLoadError() : NULL;
                 char why[256];
-                uintptr_t msg = GetLoadError ? (uintptr_t)GetLoadError() : 0;
+                /* The core's own explanation first: a guest pointer is a host
+                 * pointer here, so this reads straight out of guest memory.
+                 * Without it a refusal is indistinguishable from a crash. */
+                if (msg && *msg) fprintf(stderr, "FAIL: %s\n", msg);
                 wbx_get_death(h, why, sizeof why, &r);
-                fprintf(stderr, "FAIL: Init returned 0%s%s\n",
-                        r.data ? " - " : "", r.data ? why : "");
-                (void)msg;
+                if (r.data) fprintf(stderr, "FAIL: the guest died: %s\n", why);
+                if (!(msg && *msg) && !r.data) fprintf(stderr, "FAIL: Init returned 0\n");
                 return 1;
         }
 

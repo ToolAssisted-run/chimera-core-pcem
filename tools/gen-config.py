@@ -76,6 +76,45 @@ def cpu_tables(src):
     return out
 
 
+def named_list(src, files, marker_re):
+    """Names out of a list of device structs, in the order the index list
+    declares them - so the option text and PCem's index cannot drift."""
+    import re as _re
+    out = []
+    for f in files:
+        text = read(src, f)
+        for m in _re.finditer(marker_re, text, _re.S):
+            out.append(m.group(1))
+    return out
+
+
+def ordered_devices(src, listing_file, listing_marker, decl_files, decl_re):
+    """The index order comes from the &foo, &bar list; the display name comes
+    from each struct's first string. Joining them keeps the option list in
+    PCem's own index order."""
+    import re as _re
+    text = read(src, listing_file)
+    i = text.index(listing_marker)
+    body = text[i:text.index("};", i)]
+    order = _re.findall(r'&(\w+)', body)
+    names = {}
+    for f in decl_files:
+        t = read(src, f)
+        for m in _re.finditer(decl_re, t, _re.S):
+            names[m.group(1)] = m.group(2)
+    return [names[o] for o in order if o in names]
+
+
+# The floppy drive list is a fixed set of eight in PCem's own settings dialog
+# (wx-config.c:838-846); fdd.c's table carries no display names.
+FDD_TYPES = ['None', '5.25" 360k', '5.25" 1.2M', '5.25" 1.2M Dual RPM',
+             '3.5" 720k', '3.5" 1.44M', '3.5" 1.44M 3-Mode', '3.5" 2.88M']
+
+# video_speed, -1 plus the five named bus speeds PCem offers.
+VIDEO_SPEEDS = ["default", "8-bit 8MHz", "16-bit 8MHz", "16-bit 12MHz",
+                "16-bit 16MHz", "Fast VLB/PCI"]
+
+
 def ram_bounds(machine):
     """PCem states min_ram/max_ram in MB for an AT-class machine with a
     granularity under 128, and in KB otherwise (pc.c:748-749,
@@ -96,6 +135,28 @@ def main():
     hdds = table(read(src, "hdd.c"), "hdd_controllers[]")
     cpus = cpu_tables(src)
 
+    import glob as _glob, os as _os
+    # a couple of mice are declared in their machine's own file
+    mouse_files = [_os.path.basename(x) for x in
+                   sorted(_glob.glob(str(src / "mouse_*.c")))] + \
+                  ["amstrad.c", "olivetti_m24.c", "keyboard_olim24.c"]
+    joy_files = [_os.path.basename(x) for x in
+                 sorted(_glob.glob(str(src / "joystick_*.c")))]
+    mice = ordered_devices(src, "mouse.c", "mouse_t *mouse_list[]",
+                           mouse_files, r'mouse_t\s+(\w+)\s*=\s*\{\s*(?:\.name\s*=\s*)?"([^"]+)"')
+    joys = ordered_devices(src, "gameport.c", "joystick_if_t *joystick_list[]",
+                           joy_files, r'joystick_if_t\s+(\w+)\s*=\s*\{\s*(?:\.name\s*=\s*)?"([^"]+)"')
+
+    # Every distinct CPU name across every table, in first-seen order. The
+    # user picks a NAME; the driver finds which of the chosen machine's
+    # manufacturer tables holds it, so there is no index to type and no
+    # manufacturer to pick separately.
+    seen, all_cpus = set(), []
+    for tbl in cpus.values():
+        for n in tbl:
+            if n not in seen:
+                seen.add(n); all_cpus.append(n)
+
     data = {
         "machines": ms,
         "video_cards": [{"display": d, "internal": i} for d, i in vids],
@@ -103,10 +164,16 @@ def main():
         "hdd_controllers": [{"display": d, "internal": i} for d, i in hdds],
         "cpu_tables": cpus,
         "ram_bounds": {m["internal"]: ram_bounds(m) for m in ms},
+        "mice": mice,
+        "joysticks": joys,
+        "fdd_types": FDD_TYPES,
+        "video_speeds": VIDEO_SPEEDS,
+        "all_cpus": all_cpus,
     }
     out_path.write_text(json.dumps(data, indent=1))
     print(f"machines={len(ms)} video={len(vids)} sound={len(snds)} "
-          f"hdd={len(hdds)} cpu_tables={len(cpus)} -> {out_path}")
+          f"hdd={len(hdds)} cpu_tables={len(cpus)} cpus={len(all_cpus)} "
+          f"mice={len(mice)} joysticks={len(joys)} -> {out_path}")
 
 
 if __name__ == "__main__":
