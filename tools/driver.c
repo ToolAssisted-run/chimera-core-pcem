@@ -349,6 +349,14 @@ int main(int argc, char *argv[])
                 write_shot(nm);
         }
         wall = now_s() - t0;
+        /* Liveness before any number. A machine that halted at reset would
+         * "run" the whole workload instantly and report an enormous speed -
+         * the same trap the sandbox harness hit (docs/M1B.md section 6b,
+         * gates.md mode B). Nothing below is meaningful if nothing was drawn. */
+        if (!blit_count) {
+                fprintf(stderr, "\nFAIL: the machine drew nothing; it did not run\n");
+                return 3;
+        }
         printf("\nRESULT emulated_ms=%llu wall_s=%.3f speed=%.1f%% effective_MHz=%.1f"
                " blits=%ld %dx%d digest=%016llx\n",
                (unsigned long long)done, wall,

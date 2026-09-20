@@ -1339,6 +1339,25 @@ Two items to settle before M1 is declared done:
   wall clock fails the leg; a different key schedule changes the machine.
   Also at M2: hash a known-good v17 ROM set and fill in section 5.
 
+  **Three legs M1b earned the hard way, and they are requirements, not
+  suggestions** (`M1B.md` section 6b; `~/chimera/docs/gates.md`):
+
+  1. **Liveness before any measurement.** A dead guest returns 0 from
+     every call, so it "completes" the workload instantly - M1b's
+     negative control printed `speed=2339127.5%` from a machine that
+     never executed an instruction. **Every leg must assert
+     `wbx_get_death` is clear AND that the frame counter moved, before
+     it looks at any other number.** This is gates.md mode B and it is
+     now a known instance in this project, so a gate that omits it is a
+     regression, not an oversight.
+  2. **A per-frame digest stream, not an end-state digest.** M1b's
+     end-of-run framebuffer digest did not notice the CPU being changed
+     from a Pentium II/450 to a /233 - the last screen is the same text
+     either way. Only the frame count moved. An end-state digest is
+     evidence, not proof.
+  3. **Every leg proven to bite**, by breaking the thing and watching it
+     go red, and said so in the commit - as `patches/0002` was.
+
 - **M3 - the guest (2 weeks).** musl/GCC guest build, `-mcmodel=large`,
   no TLS, `check-wbx.sh` clean, `run-wbx.c`; native == sandbox on every
   M2 leg; savestate round-trip around every frame lossless; a new host
