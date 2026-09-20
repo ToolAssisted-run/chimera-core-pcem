@@ -1,9 +1,11 @@
 # M1a: is Windows XP fast enough, natively, on this machine?
 
-**Status: GREEN.** The TASVideos Windows XP machine runs at **150% or
-better of real time** on this desktop, natively, with the dynamic
-recompiler on. The slowest sustained window measured anywhere is 148.9%;
-the fastest is 3140%. XP stays the headline and the plan proceeds.
+**Status: GREEN.** The TASVideos Windows XP machine runs at a **median
+of 146% of real time** on this desktop, natively, with the dynamic
+recompiler on. Its pure-CPU floor is 149%. The only dips below real time
+- as low as 75% - are in the one phase that does sustained host disk
+writes, which is the phase the port replaces with a memory overlay. XP
+stays the headline and the plan proceeds.
 
 Everything below was run, not reasoned. Anything not observed is marked
 **UNPROVEN**.
@@ -106,33 +108,45 @@ published ones.
 Speed is quoted as a percentage of a real Pentium II/450, i.e. 100% =
 real time. `effective_MHz` is the Pentium II clock this host sustains.
 
-| Workload | Sustained speed | Effective |
+| Workload | Speed | Effective |
 |---|---|---|
 | POST, memory test, IDE detect | 168 - 800% | 0.76 - 3.6 GHz |
 | Award BIOS setup screens | 148 - 240% | 0.67 - 1.1 GHz |
-| XP Setup loading drivers from CD | ~3100% | ~14 GHz (mostly `HLT`) |
-| **XP Setup "Welcome to Setup", spinning** | **148.9 - 154.9%** | **0.67 - 0.70 GHz** |
+| XP Setup loading drivers from CD | up to 3334% | mostly `HLT`; not evidence of anything |
+| XP Setup "Welcome to Setup", spinning | 148.9 - 154.9% | 0.67 - 0.70 GHz |
+| **XP Setup: create partition, NTFS format, copy files** | **74.9 - 180%, median 143%** | 0.34 - 0.81 GHz |
 
-The last row is the one that matters and it deserves saying plainly:
-**that is the floor, not the ceiling.** A prompt that spins in a tight
-poll loop is the case where the emulated CPU never halts, so every
-emulated cycle costs host work - it is the worst case for speed% and the
-best case for the dynarec's code cache. Sustained over 70 s of wall
-clock it did not drop below 148.9%.
+Over the whole 635 s of emulated time driven so far, in 259 one-second
+wall-clock windows: **median 145.7%, minimum 74.9%, maximum 3334%.**
+222 of the 259 windows are below 200%, so the median is not being held up
+by idle phases.
 
-The phases that *look* fast (3100%) are fast because the guest is
-halted waiting on the CD; they are not evidence of anything.
+Two rows need reading carefully.
 
-Arithmetic worth recording: 450 MHz at 150% is 675 million emulated
-cycles a second on a host running around 5 GHz, i.e. roughly **7.4 host
-cycles per emulated Pentium II cycle**. That is an ordinary dynarec
-ratio, which is a sanity check that the number is real and not an
-artefact of a halted guest.
+**The spinning prompt is the honest CPU-only floor.** A prompt that polls
+in a tight loop never halts, so every emulated cycle costs host work. It
+is the worst case for speed% and the best case for the dynarec's code
+cache, and over 70 s it did not drop below 148.9%. Arithmetic: 450 MHz at
+150% is 675 million emulated cycles a second on a host around 5 GHz, i.e.
+roughly **7.4 host cycles per emulated Pentium II cycle** - an ordinary
+dynarec ratio, which is a sanity check that the figure is real rather
+than an artefact of a halted guest.
+
+**Sixteen windows fall below 100%, as low as 74.9%, and all sixteen are
+inside the NTFS format and file-copy phase.** That phase is the only one
+that does sustained host disk I/O: PCem's `hdd_file.c` writes the image
+with plain `fseeko64`/`fwrite` (`hdd_file.c:131-194`), and here that is a
+sparse file on ext4 inside WSL2's VHDX. **It is a reasonable expectation,
+and UNPROVEN, that this dip does not survive the port**, because PLAN.md
+4.2 makes the disk a sparse overlay in guest memory with no host write at
+all. It was not tested by re-running the image on tmpfs, so it is
+recorded as a real observed dip and nothing more.
 
 ## 4. The branch
 
-**Green.** Native XP is not "near 100%" - it is comfortably above it,
-with about 1.5x of headroom on the hardest phase measured. Windows 95
+**Green.** Native XP runs above real time with a median of about 1.45x,
+and the only excursions below real time are in the one phase that does
+sustained host disk writes - the phase the port removes. Windows 95
 (Pentium II/233, i.e. half the emulated clock) therefore has roughly 3x
 headroom and needs no separate defence.
 
@@ -145,12 +159,16 @@ real time.
 
 Stated plainly, because "fixed by construction" is not fixed:
 
-- **XP at the desktop was not measured.** The install cannot be completed
-  unattended without a Windows XP product key, which this session does
-  not have and will not invent. What was measured is XP Setup - which is
-  the same kernel, the same HAL, the same disk and CD paths, and the same
-  Voodoo 3 - but it is not the desktop, and the wiki's own boot table
-  shows the desktop phase has its own character. **UNPROVEN.**
+- **XP at the desktop was not measured.** Text-mode Setup was driven
+  all the way through - Welcome, EULA, create partition, NTFS quick
+  format, and into the file copy - by scripted keystrokes, and that is a
+  real mixed CPU, disk and CD workload on the real kernel and HAL. It is
+  not the desktop. The install cannot be finished unattended without a
+  Windows XP product key, which this session does not have and will not
+  invent. **The desktop figure is UNPROVEN and needs a key from Sergio.**
+- **The graphical phase of Setup was not reached**, so the Voodoo 3's
+  software rasteriser has never been the bottleneck in any number above.
+  Everything measured is text mode. **UNPROVEN.**
 - **The interpreter fallback was not priced.** `cpu_use_dynarec = 0` was
   not run, because the dynarec branch is green and the fallback is only
   interesting if it were not.
