@@ -37,6 +37,11 @@ python3 "$root/tools/gen-firmware.py"        "$root/docs/PLAN.md"    "$root/buil
 python3 "$root/tools/gen-waterbox-config.py" "$root/build/gen/tables.json" \
         "$root/build/gen/firmware.json" "$here/waterbox.config"
 
+# Refuse to package a declaration the engine would reject. This is cheap and
+# it is the check whose absence let a malformed slot id reach a user.
+python3 "$root/tools/check-declaration.py" "$here/waterbox.config" \
+        "$here/file_slots.json" || { echo "declaration is not legal" >&2; exit 1; }
+
 # the guest. A failure here MUST stop the package: shipping a stale core.wbx
 # because the compile failed is worse than shipping nothing, and it happened
 # once already (a bash-ism under dash, silently ignored).

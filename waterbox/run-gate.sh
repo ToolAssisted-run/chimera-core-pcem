@@ -67,6 +67,17 @@ else
 	report FAIL "core.wbx is not stale" "older than pcem-driver.c"
 fi
 
+# ------------------------------------------- 1b. the declaration is legal
+# A slot id of "floppyA" shipped and nothing caught it - not the package
+# build, not this gate, not loading the core. Only a user creating a project
+# ever saw it, and the complaint named THEIR file. Never again.
+if python3 "$root/tools/check-declaration.py" "$here/waterbox.config" \
+   "$here/file_slots.json" > "$work/decl.log" 2>&1; then
+	report PASS "the declaration is legal" "$(tail -1 "$work/decl.log")"
+else
+	report FAIL "the declaration is legal" "$(grep -m1 BAD "$work/decl.log")"
+fi
+
 # ------------------------------------------------------- 2. it runs at all
 settings='{"system":"x86 PC","machine":"ga686bx - [Slot 1] Gigabyte GA-686BX",
  "cpu":"Pentium II/450","fpu":"builtin","dynarec":true,"memSizeKB":262144,

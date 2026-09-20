@@ -17,8 +17,8 @@
 #define PCEM_CFG_NAME "machine.cfg"
 
 /* Slot names, as the engine mounts them. */
-#define PCEM_SLOT_FLOPPY_A "floppyA"
-#define PCEM_SLOT_FLOPPY_B "floppyB"
+#define PCEM_SLOT_FLOPPY_A "floppy_a"
+#define PCEM_SLOT_FLOPPY_B "floppy_b"
 #define PCEM_SLOT_HDD      "hdd"
 #define PCEM_SLOT_HDD2     "hdd2"
 #define PCEM_SLOT_CDROM    "cdrom"

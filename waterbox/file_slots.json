@@ -11,7 +11,7 @@
   ],
   "slots": [
     {
-      "id": "floppyA",
+      "id": "floppy_a",
       "title": "Floppy disks (drive A:)",
       "min": 0,
       "max": -1,
@@ -19,7 +19,7 @@
       "help": "Images for drive A:. The first is in the drive at boot; the order here is the swap order. The drive itself - 360K, 1.2M, 1.44M, 2.88M - is the Floppy Drive A setting, and an image the drive cannot physically read will not mount."
     },
     {
-      "id": "floppyB",
+      "id": "floppy_b",
       "title": "Floppy disks (drive B:)",
       "min": 0,
       "max": -1,
@@ -51,5 +51,5 @@
       "help": "A second hard disk, the same way."
     }
   ],
-  "atLeastOneOf": [["floppyA", "floppyB", "cdrom", "hdd"]]
+  "atLeastOneOf": [["floppy_a", "floppy_b", "cdrom", "hdd"]]
 }
