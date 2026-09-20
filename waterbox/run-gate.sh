@@ -213,6 +213,40 @@ else
 	report SKIP "firmware resolves by hash" "no ROM collection at $scanroot"
 fi
 
+# --------------------------------------- 4c. Auto fits the drive to the disk
+# PCem does not refuse a disk the drive cannot reach - it clamps the head at
+# the drive's last track and the guest gets read errors - so Auto getting this
+# wrong is a confusing failure rather than a loud one.
+if python3 "$root/tools/check-auto.py" "$root/build/wbx/run-wbx" \
+   "$root/build/wbx/pcem.wbx" "$gw" > "$work/auto.log" 2>&1; then
+	report PASS "Auto fits the drive to the disk" "$(tail -1 "$work/auto.log")"
+else
+	report FAIL "Auto fits the drive to the disk" "$(grep -m1 BAD "$work/auto.log")"
+fi
+
+# NEGATIVE CONTROL: a drive named explicitly must OVERRIDE Auto, or the
+# setting is decorative and a person cannot pick a drive at all.
+python3 - "$gw/settings" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); d["driveAType"] = '5.25" 360k'
+json.dump(d, open(p, "w"))
+PY
+printf '{"floppy_a":["big.img"]}' > "$gw/slots"
+python3 -c "open('$gw/big.img','wb').write(b'\0'*2949120)"
+forced=$("$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$gw" 2 --drive-types 2>/dev/null \
+	| sed -n 's/^DRIVES a=\([0-9]*\).*/\1/p')
+rm -f "$gw/slots" "$gw/big.img"
+python3 - "$gw/settings" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); d["driveAType"] = "Auto"
+json.dump(d, open(p, "w"))
+PY
+if [ "${forced:-}" = "1" ]; then
+	report PASS "a named drive overrides Auto" "negative control"
+else
+	report FAIL "a named drive overrides Auto" "got type ${forced:-none}, wanted 1"
+fi
+
 # ------------------------------------------------------- 5. savestates
 if "$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$gw" 600 > /dev/null 2>&1; then
 	report PASS "600-frame run for the state legs"

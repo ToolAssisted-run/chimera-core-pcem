@@ -38,12 +38,40 @@ static int drv_setting_int(const char *key, int dflt)
 {
         return (int)wbx_setting_long(key, dflt);
 }
+/* jsmn hands back the RAW token text, so a JSON string keeps its escapes:
+ * "5.25\" 360k" arrives as 5.25\" 360k, with the backslash still in it. Every
+ * floppy drive name has an inches mark in it, so without this no drive could
+ * ever be matched by name and the setting was decorative. Found by the gate's
+ * negative control, not by reading the code. */
+static void json_unescape(char *s)
+{
+        char *r = s, *w = s;
+        while (*r) {
+                if (*r != '\\') { *w++ = *r++; continue; }
+                r++;
+                switch (*r) {
+                case 0:    *w = 0; return;
+                case 'n':  *w++ = '\n'; r++; break;
+                case 't':  *w++ = '\t'; r++; break;
+                case 'r':  *w++ = '\r'; r++; break;
+                case 'b':  *w++ = '\b'; r++; break;
+                case 'f':  *w++ = '\f'; r++; break;
+                case 'u':  /* not expected in a setting value; keep it visible */
+                        *w++ = '\\'; *w++ = 'u'; r++; break;
+                default:   *w++ = *r++; break;   /* \" \\ \/ and anything else */
+                }
+        }
+        *w = 0;
+}
+
 static const char *drv_setting_str(const char *key, const char *dflt,
                                    char *out, int outsz)
 {
         if (wbx_setting_str(key, out, outsz) < 0) {
                 strncpy(out, dflt, (size_t)outsz - 1);
                 out[outsz - 1] = 0;
+        } else {
+                json_unescape(out);
         }
         return out;
 }
@@ -358,6 +386,47 @@ static void cpu_choices(int model, char *out, int outsz)
         }
 }
 
+/* The size of a file that is mounted, or 0. */
+static long file_size(const char *name)
+{
+        FILE *f = fopen(name, "rb");
+        long n;
+        if (!f) return 0;
+        fseek(f, 0, SEEK_END);
+        n = ftell(f);
+        fclose(f);
+        return n;
+}
+
+/* "Auto" fits the drive to the disk actually in it.
+ *
+ * This matters more than it looks: PCem does NOT refuse an image the drive
+ * cannot reach. fdd.c:91-92 clamps the head at the drive's last track, so a
+ * 1.44M disk in a 360k drive mounts and then misreads, which is a confusing
+ * failure to debug. Auto is the defence.
+ *
+ * A movie is safe to record as "Auto" because the answer is a pure function
+ * of things the project already pins: the media are hashed as they are added
+ * and the hash is their identity (docs/project.md), the order within a slot
+ * is recorded, and the core's own version is pinned too - so the same project
+ * resolves the same drive every time, and a different file is a different
+ * project rather than a silent change under a movie. */
+static int auto_fdd_type(const char *slot_file_name, int dflt)
+{
+        long n = slot_file_name ? file_size(slot_file_name) : 0;
+        switch (n) {
+        case 163840: case 184320: case 327680: case 368640: return 1; /* 5.25" 360k */
+        case 737280:  return 4;   /* 3.5" 720k */
+        case 1228800: return 2;   /* 5.25" 1.2M */
+        case 1474560: return 5;   /* 3.5" 1.44M */
+        case 2949120: return 7;   /* 3.5" 2.88M */
+        default: break;
+        }
+        /* No disk, or a container that carries its own geometry (.fdi, .td0,
+         * .imd, .86f) whose file length says nothing about the medium. */
+        return dflt;
+}
+
 static void compose_cfg(void)
 {
         char buf[256];
@@ -398,15 +467,19 @@ static void compose_cfg(void)
          * PCem's own new-disk dialog does by file size. */
         if ((fn = slot_file(PCEM_SLOT_HDD, slot, sizeof slot))) {
                 cfg_add("hdc_fn = %s\n", fn);
-                cfg_add("hdc_sectors = %d\n", drv_setting_int("hddSectors", 0));
-                cfg_add("hdc_heads = %d\n", drv_setting_int("hddHeads", 0));
-                cfg_add("hdc_cylinders = %d\n", drv_setting_int("hddCylinders", 0));
+                /* Auto leaves the three at 0, which is PCem's own "work it
+                 * out from the file's length" path. */
+                int custom = !strcmp(drv_setting_str("hddGeometry", "Auto", buf, sizeof buf), "Custom");
+                cfg_add("hdc_sectors = %d\n", custom ? drv_setting_int("hddSectors", 0) : 0);
+                cfg_add("hdc_heads = %d\n", custom ? drv_setting_int("hddHeads", 0) : 0);
+                cfg_add("hdc_cylinders = %d\n", custom ? drv_setting_int("hddCylinders", 0) : 0);
         }
         if ((fn = slot_file(PCEM_SLOT_HDD2, slot, sizeof slot))) {
                 cfg_add("hdd_fn = %s\n", fn);
-                cfg_add("hdd_sectors = %d\n", drv_setting_int("hdd2Sectors", 0));
-                cfg_add("hdd_heads = %d\n", drv_setting_int("hdd2Heads", 0));
-                cfg_add("hdd_cylinders = %d\n", drv_setting_int("hdd2Cylinders", 0));
+                int custom2 = !strcmp(drv_setting_str("hdd2Geometry", "Auto", buf, sizeof buf), "Custom");
+                cfg_add("hdd_sectors = %d\n", custom2 ? drv_setting_int("hdd2Sectors", 0) : 0);
+                cfg_add("hdd_heads = %d\n", custom2 ? drv_setting_int("hdd2Heads", 0) : 0);
+                cfg_add("hdd_cylinders = %d\n", custom2 ? drv_setting_int("hdd2Cylinders", 0) : 0);
         }
 
         if ((fn = slot_file(PCEM_SLOT_FLOPPY_A, slot, sizeof slot))) cfg_add("disc_a = %s\n", fn);
@@ -415,12 +488,18 @@ static void compose_cfg(void)
                 static const char *fdd[] = {"None", "5.25\" 360k", "5.25\" 1.2M",
                         "5.25\" 1.2M Dual RPM", "3.5\" 720k", "3.5\" 1.44M",
                         "3.5\" 1.44M 3-Mode", "3.5\" 2.88M"};
-                char v[64];
-                int i, a = 7, b = 2;
-                drv_setting_str("driveAType", "3.5\" 2.88M", v, sizeof v);
+                char v[64], sa[256], sb[256];
+                const char *fa = slot_file(PCEM_SLOT_FLOPPY_A, sa, sizeof sa);
+                const char *fb = slot_file(PCEM_SLOT_FLOPPY_B, sb, sizeof sb);
+                int i, a, b;
+
+                drv_setting_str("driveAType", "Auto", v, sizeof v);
+                a = auto_fdd_type(fa, 5);          /* 3.5" 1.44M, the commonest */
                 for (i = 0; i < 8; i++) if (!strcmp(fdd[i], v)) { a = i; break; }
-                drv_setting_str("driveBType", "5.25\" 1.2M", v, sizeof v);
+                drv_setting_str("driveBType", "Auto", v, sizeof v);
+                b = auto_fdd_type(fb, 2);          /* 5.25" 1.2M, the usual second */
                 for (i = 0; i < 8; i++) if (!strcmp(fdd[i], v)) { b = i; break; }
+
                 cfg_add("drive_a_type = %d\n", a);
                 cfg_add("drive_b_type = %d\n", b);
         }
@@ -429,15 +508,28 @@ static void compose_cfg(void)
         /* The CD-ROM. cdrom_drive 200 is "an image"; 0 is "no drive". Leaving
          * the channel set with no drive crashes PCem in callbackide (XP.md
          * section 6), so the channel goes with the drive. */
-        if ((fn = slot_file(PCEM_SLOT_CDROM, slot, sizeof slot))) {
-                cfg_add("cdrom_drive = 200\n");
-                cfg_add("cdrom_path = %s\n", fn);
-                cfg_add("cdrom_channel = %d\n", drv_setting_int("cdChannel", 2));
-                cfg_add("cd_speed = %d\n", drv_setting_int("cdSpeed", 24));
-                cfg_add("cd_model = %s\n", drv_setting_str("cdModel", "pcemcd", buf, sizeof buf));
-        } else {
-                cfg_add("cdrom_drive = 0\n");
-                cfg_add("cdrom_channel = -1\n");
+        {
+                char want[32];
+                int fitted;
+                fn = slot_file(PCEM_SLOT_CDROM, slot, sizeof slot);
+                drv_setting_str("cdDrive", "Auto", want, sizeof want);
+                if (!strcmp(want, "None"))       fitted = 0;
+                else if (!strcmp(want, "Fitted")) fitted = 1;
+                else                              fitted = fn != NULL;   /* Auto */
+
+                if (fitted) {
+                        cfg_add("cdrom_drive = 200\n");
+                        if (fn) cfg_add("cdrom_path = %s\n", fn);
+                        cfg_add("cdrom_channel = %d\n", drv_setting_int("cdChannel", 2));
+                        cfg_add("cd_speed = %d\n", drv_setting_int("cdSpeed", 24));
+                        cfg_add("cd_model = %s\n", drv_setting_str("cdModel", "pcemcd", buf, sizeof buf));
+                } else {
+                        /* The channel goes with the drive: a channel set with
+                         * no drive behind it segfaults PCem in callbackide
+                         * (docs/XP.md section 6). */
+                        cfg_add("cdrom_drive = 0\n");
+                        cfg_add("cdrom_channel = -1\n");
+                }
         }
         cfg_add("zip_channel = -1\n");
 
@@ -573,6 +665,12 @@ ECL_EXPORT int InputWasRead(void) { return g_inputRead; }
 
 ECL_EXPORT uint64_t GetBlitCount(void) { return (uint64_t)g_blits; }
 ECL_EXPORT int GetCpuSpeedHz(void) { return cpu_get_speed(); }
+
+/* What the drives were actually fitted as, so a harness can check that Auto
+ * did what it claims rather than taking the setting's word for it. */
+extern int fdd_get_type(int drive);
+ECL_EXPORT int GetDriveAType(void) { return fdd_get_type(0); }
+ECL_EXPORT int GetDriveBType(void) { return fdd_get_type(1); }
 
 /* Memory domains. Mandatory: the engine resolves all five or refuses the
  * core. PCem's RAM pointer and size are only valid after resetpchard, which

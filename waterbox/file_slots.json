@@ -16,7 +16,7 @@
       "min": 0,
       "max": -1,
       "formats": ["img", "ima", "dsk", "fdi", "86f", "td0", "imd"],
-      "help": "Images for drive A:. The first is in the drive at boot; the order here is the swap order. The drive itself - 360K, 1.2M, 1.44M, 2.88M - is the Floppy Drive A setting, and an image the drive cannot physically read will not mount."
+      "help": "Images for drive A:. The first is in the drive at boot; the order here is the swap order. The drive itself is the Floppy Drive A setting, which defaults to Auto and fits the drive to whatever image you put here. If you set a drive by hand, mind that it matches: PCem does not refuse a disk the drive cannot reach, it clamps the head at the drive's last track and the guest gets read errors instead."
     },
     {
       "id": "floppy_b",

@@ -62,7 +62,7 @@ int main(int argc, char **argv)
 {
         const char *wbx, *workdir;
         long frames;
-        int digests = 0, every = 1, i;
+        int digests = 0, every = 1, driveTypes = 0, i;
         mb_return r;
         mb_host *h;
         FILE *f;
@@ -85,6 +85,7 @@ int main(int argc, char **argv)
         for (i = 4; i < argc; i++) {
                 if (!strcmp(argv[i], "--digests")) digests = 1;
                 else if (!strcmp(argv[i], "--every") && i + 1 < argc) every = atoi(argv[++i]);
+                else if (!strcmp(argv[i], "--drive-types")) driveTypes = 1;
         }
 
         f = fopen(wbx, "rb");
@@ -136,6 +137,12 @@ int main(int argc, char **argv)
                 if (r.data) fprintf(stderr, "FAIL: the guest died: %s\n", why);
                 if (!(msg && *msg) && !r.data) fprintf(stderr, "FAIL: Init returned 0\n");
                 return 1;
+        }
+
+        if (driveTypes) {
+                intfn A = (intfn)proc(h, "GetDriveAType", 1);
+                intfn B = (intfn)proc(h, "GetDriveBType", 1);
+                printf("DRIVES a=%d b=%d\n", A(), B());
         }
 
         wbx_deactivate_host(h, &r); die(&r, "deactivate");
