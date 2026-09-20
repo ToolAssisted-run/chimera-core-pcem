@@ -33,6 +33,7 @@ typedef void     (MB_GUEST_ABI *framefn)(uint64_t);
 typedef void     (MB_GUEST_ABI *setfn)(int32_t, int32_t);
 typedef uint64_t (MB_GUEST_ABI *u64fn)(void);
 typedef const char *(MB_GUEST_ABI *strfn)(void);
+typedef uintptr_t (MB_GUEST_ABI *ptrfn)(void);
 
 static double now_s(void)
 {
@@ -63,6 +64,9 @@ int main(int argc, char **argv)
         const char *wbx, *workdir;
         long frames;
         int digests = 0, every = 1, driveTypes = 0, i;
+        long shotFrame = -1, pressAt[32];
+        int pressBtn[32], nPress = 0;
+        const char *shotPath = NULL;
         mb_return r;
         mb_host *h;
         FILE *f;
@@ -86,6 +90,17 @@ int main(int argc, char **argv)
                 if (!strcmp(argv[i], "--digests")) digests = 1;
                 else if (!strcmp(argv[i], "--every") && i + 1 < argc) every = atoi(argv[++i]);
                 else if (!strcmp(argv[i], "--drive-types")) driveTypes = 1;
+                else if (!strcmp(argv[i], "--press") && i + 1 < argc && nPress < 32) {
+                        /* <frame>=<button index>, held for a few frames - a
+                         * real machine sees a key down for longer than 10 ms */
+                        char *spec = argv[++i], *eq = strchr(spec, '=');
+                        if (eq) { *eq = 0; pressAt[nPress] = atol(spec);
+                                  pressBtn[nPress] = atoi(eq + 1); nPress++; }
+                }
+                else if (!strcmp(argv[i], "--shot") && i + 1 < argc) {
+                        char *spec = argv[++i], *eq = strchr(spec, '=');
+                        if (eq) { *eq = 0; shotFrame = atol(spec); shotPath = eq + 1; }
+                }
         }
 
         f = fopen(wbx, "rb");
@@ -151,6 +166,7 @@ int main(int argc, char **argv)
 
         {
                 framefn FrameAdvance = (framefn)proc(h, "FrameAdvance", 1);
+                setfn SetButton = (setfn)proc(h, "SetButton", 1);
                 u64fn Digest = (u64fn)proc(h, "GetFrameDigest", 1);
                 u64fn Blits = (u64fn)proc(h, "GetBlitCount", 1);
                 intfn W = (intfn)proc(h, "GetVideoWidth", 1);
@@ -162,10 +178,35 @@ int main(int argc, char **argv)
 
                 for (n = 0; n < frames; n++) {
                         uint64_t dg;
+                        int k;
+                        for (k = 0; k < nPress; k++) {
+                                if (n == pressAt[k]) SetButton(pressBtn[k], 1);
+                                if (n == pressAt[k] + 8) SetButton(pressBtn[k], 0);
+                        }
                         FrameAdvance(0);
                         dg = Digest();
                         stream ^= dg; stream *= 1099511628211ULL;
                         audioTotal += Samples();
+                        if (shotPath && n == shotFrame) {
+                                /* A picture, because a stuck machine is
+                                 * perfectly deterministic: a stable digest
+                                 * proves nothing on its own. */
+                                uint32_t *fb = (uint32_t *)((ptrfn)proc(h, "GetVideoBgra", 1))();
+                                int w = W(), hh = H(), x, y;
+                                FILE *o = fopen(shotPath, "wb");
+                                if (o && fb && w > 0 && hh > 0) {
+                                        fprintf(o, "P6\n%d %d\n255\n", w, hh);
+                                        for (y = 0; y < hh; y++)
+                                                for (x = 0; x < w; x++) {
+                                                        uint32_t px = fb[(size_t)y * w + x];
+                                                        fputc((px >> 16) & 0xff, o);
+                                                        fputc((px >> 8) & 0xff, o);
+                                                        fputc(px & 0xff, o);
+                                                }
+                                        printf("wrote %s (%dx%d)\n", shotPath, w, hh);
+                                }
+                                if (o) fclose(o);
+                        }
                         if (digests && (n % every) == 0)
                                 printf("frame %6ld digest=%016llx %dx%d\n",
                                        n, (unsigned long long)dg, W(), H());

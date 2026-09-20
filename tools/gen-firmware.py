@@ -151,6 +151,26 @@ def main():
                 f"The ROM of the {display}, which you supply.",
                 setting, internal)
 
+    # PLAN.md 5.4, the character generators. loadbios() tries these four
+    # unconditionally (mem_bios.c:61-64) and loadfont() returns SILENTLY when
+    # one is absent, so the failure is a blank screen rather than an error.
+    # mda.rom in particular feeds BOTH fontdatm (MDA) and fontdat (CGA), so
+    # every CGA-class card needs it and not only the MDA - MEASURED: an IBM PC
+    # with a CGA and no mda.rom POSTs to a blank screen with only the cursor.
+    if "mda.rom" in entries:
+        entries["mda.rom"]["requiredWhen"] = {"any": [
+            {"setting": "videoCard", "in": ["mda", "cga", "hercules", "incolor",
+                                            "plantronics", "compaq_cga"]},
+            {"setting": "machine", "in": ["ibmpcjr", "tandy", "tandy1000hx",
+                                          "tandy1000sl2", "pc1512", "olivetti_m24",
+                                          "t1000", "t1200", "t3100e"]},
+        ]}
+        entries["mda.rom"]["display"] = "IBM character generator ROM (mda.rom)"
+        entries["mda.rom"]["description"] = (
+            "The 8x8 and 8x14 character shapes an MDA or CGA-class card draws "
+            "text with. Without it the machine POSTs to a blank screen - PCem "
+            "loads fonts silently and does not complain.")
+
     out = sorted(entries.values(), key=lambda e: e["id"])
     out_path.write_text(json.dumps(out, indent=2))
     print(f"{len(out)} firmware entries -> {out_path}")

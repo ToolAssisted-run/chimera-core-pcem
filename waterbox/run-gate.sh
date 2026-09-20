@@ -247,6 +247,56 @@ else
 	report FAIL "a named drive overrides Auto" "got type ${forced:-none}, wanted 1"
 fi
 
+# ------------------------------------------- 4d. a real game, on a real 1981 PC
+# Every other leg runs a Pentium II. This one boots Alley Cat (1984) on an IBM
+# PC 5150 with CGA off a 180 KB single-sided disk, which is the other end of
+# the 93 machines and the end DOSBox-X cannot do.
+#
+# The liveness check here is deliberately NOT a stable digest: a stuck machine
+# is perfectly deterministic, and this project has been caught by that three
+# times. It requires the picture to CHANGE across the run.
+game="${PCEM_ALLEYCAT:-/mnt/c/Users/sergiom/Documents/TAS/roms/dos/alleyCat/disk1.img}"
+pcrom="${PCEM_ROM_COLLECTION:-/mnt/c/Users/sergiom/Documents/TAS/firmware/PCem-ROMs}/ibmpc/pc102782.bin"
+if [ -f "$game" ] && [ -f "$pcrom" ]; then
+	ac="$work/alleycat"; mkdir -p "$ac"
+	cp "$pcrom" "$ac/ibmpc_pc102782.bin"
+	cp "${PCEM_ROM_COLLECTION:-/mnt/c/Users/sergiom/Documents/TAS/firmware/PCem-ROMs}/mda.rom" "$ac/mda.rom"
+	cp "$game" "$ac/disk1.img"
+	python3 - "$ac" <<'PY'
+import json, sys
+d = sys.argv[1]
+json.dump({"system": "x86 PC", "machine": "ibmpc - [8088] IBM PC",
+           "cpu": "8088/4.77", "memSizeKB": 640, "videoCard": "cga - CGA",
+           "soundCard": "none - None", "hddController": "none - None",
+           "driveAType": "Auto", "cdDrive": "None",
+           "fpsNumerator": 100, "fpsDenominator": 1}, open(d + "/settings", "w"))
+json.dump({"floppy_a": ["disk1.img"]}, open(d + "/slots", "w"))
+PY
+	# Auto must fit a 5.25" 360k drive (type 1) to a 180 KB disk - a drive
+	# nobody would have guessed, which is what makes this a real test of it.
+	dt=$("$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$ac" 2 --drive-types 2>/dev/null \
+		| sed -n 's/^DRIVES a=\([0-9]*\).*/\1/p')
+	if [ "${dt:-}" = "1" ]; then
+		report PASS "Auto fits a 180 KB disk" "5.25\" 360k"
+	else
+		report FAIL "Auto fits a 180 KB disk" "fitted type ${dt:-none}, wanted 1"
+	fi
+
+	# Boot, answer the joystick prompt and the skill menu, and require the
+	# picture to keep changing once the game is up.
+	distinct=$("$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$ac" 60000 \
+		--press 12500=48 --press 19500=36 --press 42000=56 \
+		--digests --every 250 2>/dev/null \
+		| awk 'NR>1{print $3}' | tail -40 | sort -u | wc -l)
+	if [ "${distinct:-0}" -ge 20 ]; then
+		report PASS "Alley Cat boots and animates" "$distinct distinct frames of the last 40"
+	else
+		report FAIL "Alley Cat boots and animates" "only ${distinct:-0} distinct frames - stuck?"
+	fi
+else
+	report SKIP "Alley Cat boots and animates" "no game image at $game"
+fi
+
 # ------------------------------------------------------- 5. savestates
 if "$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$gw" 600 > /dev/null 2>&1; then
 	report PASS "600-frame run for the state legs"
