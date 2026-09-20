@@ -183,6 +183,25 @@ import json, sys
 p = sys.argv[1]; d = json.load(open(p)); d["cpu"] = "Pentium II/450"; json.dump(d, open(p, "w"))
 PY
 
+# ------------------------------------------- 4b. firmware resolves by hash
+# Chimera's Scan Folder is hash-first: FirmwareLocator matches on SHA1 when the
+# declaration has one and only falls back to the name. A declaration without
+# hashes resolves NOTHING against a folder full of correct ROMs - which is what
+# Sergio hit. The requirement in his words is that a single "include
+# sub-folders" search matches all firmwares, so that is what this checks.
+scanroot="${PCEM_ROM_COLLECTION:-/mnt/c/Users/sergiom/Documents/TAS/firmware/PCem-ROMs}"
+if [ -d "$scanroot" ]; then
+	if python3 "$root/tools/check-firmware-scan.py" "$here/waterbox.config" \
+	   "$scanroot" > "$work/scan.log" 2>&1; then
+		report PASS "firmware resolves by hash" \
+			"$(sed -n 's/^resolved by hash: //p' "$work/scan.log")"
+	else
+		report FAIL "firmware resolves by hash" "see build/gate/scan.log"
+	fi
+else
+	report SKIP "firmware resolves by hash" "no ROM collection at $scanroot"
+fi
+
 # ------------------------------------------------------- 5. savestates
 if "$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$gw" 600 > /dev/null 2>&1; then
 	report PASS "600-frame run for the state legs"

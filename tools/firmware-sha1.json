@@ -1,0 +1,862 @@
+{
+ "430vx_55xwuq0e.bin": {
+  "sha1": "ce8d8bbaed71ab1c1c40443bcc43770b3ddaf08d",
+  "size": 131072
+ },
+ "5429.vbi": {
+  "sha1": "8060cd4b49052572bb5ec929f8ad21e2addce237",
+  "size": 32768
+ },
+ "62-000279-061.bin": {
+  "sha1": "9c56661d0f83f256d6efd611c7ad380da6d7069f",
+  "size": 16384
+ },
+ "86c375_1.bin": {
+  "sha1": "228a2d644e1732cb5a2eb1291608c7050cf39229",
+  "size": 32768
+ },
+ "86c732p.bin": {
+  "sha1": "b5c2249f7e4b328b8d099e284393c5c316c11882",
+  "size": 65536
+ },
+ "86c764x1.bin": {
+  "sha1": "5af93aab8000e9bb884da9eb855c6c5fe25c0ac1",
+  "size": 32768
+ },
+ "8x12.bin": {
+  "sha1": "67743c5d08f039377c6c80dd1a651108b6d3b105",
+  "size": 4096
+ },
+ "90x8969.bin": {
+  "sha1": "68419a80d14a53a6bc496b524a01720393ad0fd1",
+  "size": 16384
+ },
+ "90x8970.bin": {
+  "sha1": "8fa6553e86284c562346016c113ffaefcaed185f",
+  "size": 16384
+ },
+ "92F2244.U68": {
+  "sha1": "f17472c34daadd6ef90ba538795ee9cec5a40a0f",
+  "size": 32768
+ },
+ "92F2245.U69": {
+  "sha1": "27213d3de330c9029767b404dfbd03102152c03f",
+  "size": 32768
+ },
+ "9400CXI.vbi": {
+  "sha1": "2bb1f6ba37fc8dc8650a559445584c5162aa4928",
+  "size": 32768
+ },
+ "9440.vbi": {
+  "sha1": "3ad8e2e344fda322741e693fe9520b1500d3475b",
+  "size": 32768
+ },
+ "ATI EGA Wonder 800+ N1.00.BIN": {
+  "sha1": "55cbd6b1921cd8234e4f6df7f08a88c45e9a98d3",
+  "size": 32768
+ },
+ "BusLogic_BT-545S_U15_27128_5002026-4.50.bin": {
+  "sha1": "9d46a99f4b3057e94ef422f387218de2c4553c1a",
+  "size": 16384
+ },
+ "Longshine LCS-6821N - BIOS version 1.04.bin": {
+  "sha1": "455a5195cc8c0be718c8d0e8e66738bbc512eac2",
+  "size": 8192
+ },
+ "Machspeed_VGA_GUI_2100_VLB.vbi": {
+  "sha1": "a09ceea0d8036e13ec501dd6cc32bca16f2f9204",
+  "size": 32768
+ },
+ "Rancho_RT1000_RTBios_version_8.10R.bin": {
+  "sha1": "ace07e7f19f07d406f4a286f6923d188c6fdccdb",
+  "size": 8192
+ },
+ "SVGA141.ROM": {
+  "sha1": "c2dbf7759299438d323cd3286905e78200ab2060",
+  "size": 32768
+ },
+ "acer386_acer386.bin": {
+  "sha1": "9be25b1af080aee863441cf0d25d0f984accb086",
+  "size": 65536
+ },
+ "acer386_oti067.bin": {
+  "sha1": "bfb5aced04516eb86087963dbab6b617380aa9c4",
+  "size": 32768
+ },
+ "adaptec_aha1542c_bios_534201-00.bin": {
+  "sha1": "2b38f2e40cd02a1b32966ead7b202b0fca130cb8",
+  "size": 32768
+ },
+ "ama932j_ami.bin": {
+  "sha1": "81cb6017815590ee8188fe7a9d3028272537851e",
+  "size": 65536
+ },
+ "ama932j_oti067.bin": {
+  "sha1": "5411f90471637d46a13324bf0b10f32412163fa4",
+  "size": 32768
+ },
+ "ami286_amic206.bin": {
+  "sha1": "91e9d8cdc2f1b40a601a23ceaff2189fd1245f3b",
+  "size": 65536
+ },
+ "ami386_ami386.bin": {
+  "sha1": "8289ba36a3dfc3324333b1a834bc6b0402b546f0",
+  "size": 65536
+ },
+ "ami386dx_opt495sx.ami": {
+  "sha1": "d113527ebd06f0359f2decd4ac0c6202f982d45e",
+  "size": 65536
+ },
+ "ami486_ami486.bin": {
+  "sha1": "4e1d4a0deec702679961ffde470f8929d903bd5c",
+  "size": 65536
+ },
+ "amixt_ami_8088_bios_31jan89.bin": {
+  "sha1": "cb30f01c46dad83343999c609d6f82092e2e8f54",
+  "size": 8192
+ },
+ "ataripc3_AWARD_ATARI_PC_BIOS_3.08.BIN": {
+  "sha1": "8e98f3c9180c55b1f5521727779c016083d27960",
+  "size": 32768
+ },
+ "ati_ksc5601.rom": {
+  "sha1": "0cccaed4a9ad461f789b657ca5e308975cf0841c",
+  "size": 524288
+ },
+ "atikorvga.bin": {
+  "sha1": "d1a09533195e295b3349fd1ac304e222b633abe3",
+  "size": 32768
+ },
+ "atimach64vt2pci.bin": {
+  "sha1": "0f4cf9221179c675dafafde638bc00244b6feb63",
+  "size": 65536
+ },
+ "avga2vram.vbi": {
+  "sha1": "8be0fe065c652d6a39d742df8f217c914574b701",
+  "size": 32768
+ },
+ "award286_award.bin": {
+  "sha1": "c40a15c2636cf734e83ddf22213f637766f6456e",
+  "size": 65536
+ },
+ "awe32.raw": {
+  "sha1": "6ac3c1317c1acb83902397d7767763cca4de357a",
+  "size": 1048576
+ },
+ "bahamas64.bin": {
+  "sha1": "ac0f6402450bcf077aa95255e66e4c4c3cdd9ed8",
+  "size": 32768
+ },
+ "bios.bin": {
+  "sha1": "bb9761dbc750de0b54ba069841a51b084aaf0cd5",
+  "size": 65536
+ },
+ "blasterpci.rom": {
+  "sha1": "cf335535fa4c07b9d9812fa320d369c7f62b996b",
+  "size": 32768
+ },
+ "bull_micral_45_even.fil": {
+  "sha1": "b5c9a71cfd7e87cc91453a73f17e93527c5ac7ac",
+  "size": 32768
+ },
+ "bull_micral_45_odd.fil": {
+  "sha1": "dcbd305f065382f5327296391da388c50bb1b734",
+  "size": 32768
+ },
+ "cbm_sl386sx25_f000.rom": {
+  "sha1": "6ce16a956b8454d3746ccb923fac45924e4302a4",
+  "size": 65536
+ },
+ "cmdpc30_commodore pc 30 iii even.bin": {
+  "sha1": "50237ffea703b867de426ab9ebc2af46bac1d0e1",
+  "size": 16384
+ },
+ "cmdpc30_commodore pc 30 iii odd.bin": {
+  "sha1": "27d6ad9554be86359d44331f25591e3122a31519",
+  "size": 16384
+ },
+ "compaq_pii_109739-001.rom": {
+  "sha1": "3d3cff84a747aea3db2612a7ac3ebe9cb4700b33",
+  "size": 16384
+ },
+ "compaq_pii_109740-001.rom": {
+  "sha1": "3ae7833d7f92d6495e2e57caa0260b573187eb72",
+  "size": 16384
+ },
+ "compaq_pip_Compaq Portable Plus 100666-001 Rev C.bin": {
+  "sha1": "d9782eb46cd1a7d40f3e8b37eb48db04ac588acb",
+  "size": 8192
+ },
+ "dells200_dell0.bin": {
+  "sha1": "1aca289240caa6d4bf811d301c338c157b6902a1",
+  "size": 32768
+ },
+ "dells200_dell1.bin": {
+  "sha1": "ee9ceef1fc7a328ee82006cd504e72e16f21b3c8",
+  "size": 32768
+ },
+ "deskpro386_109591-005.u13.bin": {
+  "sha1": "29a0e73d6b1df7dfa6c7ecb3f454bac9150017a1",
+  "size": 16384
+ },
+ "deskpro386_109592-005.u11.bin": {
+  "sha1": "c2d2c1660f3f4a5e70add7f294393f51c7f89129",
+  "size": 16384
+ },
+ "deskpro_Compaq - BIOS - Revision J - 106265-002.bin": {
+  "sha1": "62b8f15e5eddc035b51196e79bbca7bb26d73d1f",
+  "size": 8192
+ },
+ "dtc_cxd21a.bin": {
+  "sha1": "b3a792086d965d10efab346910c983d5b3535775",
+  "size": 8192
+ },
+ "dtk386_3cto001.bin": {
+  "sha1": "94aefc745b51015426a73015ab7892b88e7c8bcf",
+  "size": 65536
+ },
+ "dtk_dtk_erso_2.42_2764.bin": {
+  "sha1": "02fa057f2c22ab199a8d9795ab1ae570f2b13a36",
+  "size": 8192
+ },
+ "ecs386_32_386_32_even.bin": {
+  "sha1": "bcc6164173b44832b8ebfa1883e22efc167e2cd4",
+  "size": 32768
+ },
+ "ecs386_32_386_32_odd.bin": {
+  "sha1": "74eec72e190f682cfd5ae5425ebdc854e0ba7bc9",
+  "size": 32768
+ },
+ "elx_pc425x_elx_pc425x.bin": {
+  "sha1": "e9b6d12e2259492823de747130112db78ee7ebea",
+  "size": 131072
+ },
+ "elx_pc425x_elx_pc425x_bios.bin": {
+  "sha1": "81ef79faed3914ccff23b3da5e831d7a99626538",
+  "size": 65536
+ },
+ "elx_pc425x_elx_pc425x_vbios.bin": {
+  "sha1": "3ad8e2e344fda322741e693fe9520b1500d3475b",
+  "size": 32768
+ },
+ "endeavor_1006cb0_.bi1": {
+  "sha1": "d300c52e2c2e9d4c3b9c2dcc1c3000567792a1e4",
+  "size": 53376
+ },
+ "endeavor_1006cb0_.bio": {
+  "sha1": "04e92db350973bb5977d642bd4b8988d2a8a7b42",
+  "size": 65664
+ },
+ "epson_pcax2e_EVAXE": {
+  "sha1": "52456943ee4d83c2a3d46e75d292f4fb57a5a2d8",
+  "size": 32768
+ },
+ "epson_pcax2e_ODAXE": {
+  "sha1": "1c6e62f2ab45e9574691224dd6a6ab2a823e85cc",
+  "size": 32768
+ },
+ "epson_pcax3_EVAX3": {
+  "sha1": "549027e6b786fa98a14912c1fb6d44c607206253",
+  "size": 32768
+ },
+ "epson_pcax3_ODAX3": {
+  "sha1": "f17741282e078a66e38d82ca48455b17c54e832f",
+  "size": 32768
+ },
+ "epson_pcax_EVAX": {
+  "sha1": "5dbe414b762494fa65df6ac0391b2281f452f3e9",
+  "size": 16384
+ },
+ "epson_pcax_ODAX": {
+  "sha1": "22be1457332a62ae789e779e9666ffd63c91d010",
+  "size": 16384
+ },
+ "et4000.bin": {
+  "sha1": "945d405b0fb4b8f26830d495881f8587d90e5ef9",
+  "size": 32768
+ },
+ "et4000_kasan16.bin": {
+  "sha1": "a55e7eb27ef2b4f118ea2028835e88988f07cf57",
+  "size": 32768
+ },
+ "et4000w32.bin": {
+  "sha1": "2df6bf7b4529057aa171f0eb200331dec3d04b31",
+  "size": 32768
+ },
+ "europc_50145": {
+  "sha1": "54430d4d0462860860397487c9c109e6f70db8e3",
+  "size": 32768
+ },
+ "fic_va503p_je4333.bin": {
+  "sha1": "538df3f6fe43b670965d2d23420582267dab0907",
+  "size": 131072
+ },
+ "ga686bx_6BX.F2a": {
+  "sha1": "637e1b3863694ffd15a40585fd563329be3873d4",
+  "size": 262144
+ },
+ "gd5430_pci.bin": {
+  "sha1": "b72edc318710c46c9cb280e9b1b3c9f8a34844f2",
+  "size": 65536
+ },
+ "gd5434.bin": {
+  "sha1": "1ee70f6cc3c7b9a9afb402a1bc939f9f2e0cc739",
+  "size": 65536
+ },
+ "gdc212m_gdc212m_72h.bin": {
+  "sha1": "ec951e6f78e03d842d1ac8dac2cb8baddcca2b02",
+  "size": 65536
+ },
+ "genxt_pcxt.rom": {
+  "sha1": "a641b505bbac97b8775f91fe9b83d9afdf4d038f",
+  "size": 8192
+ },
+ "gw286ct_2ctc001.bin": {
+  "sha1": "a4898e8c9bc3e2f7fe82d1e0c7550a22f9d41914",
+  "size": 65536
+ },
+ "i8550021_90x7420.zm13": {
+  "sha1": "5b31ba66cd3690e651a450619a32b7210769945d",
+  "size": 32768
+ },
+ "i8550021_90x7423.zm14": {
+  "sha1": "1af7faa526585a7cfb69e71d90a75e1f1c541586",
+  "size": 32768
+ },
+ "i8550021_90x7426.zm16": {
+  "sha1": "228f67dc915d84519da7fc1a59b7f9254278f3a0",
+  "size": 32768
+ },
+ "i8550021_90x7429.zm18": {
+  "sha1": "e112c291ac3d9f6507c93ac49ad26f9fd2245fd2",
+  "size": 32768
+ },
+ "i8555081_33f8145.zm40": {
+  "sha1": "7cee77828867ad1bdbe0ac223bc25d23c65b28a0",
+  "size": 65536
+ },
+ "i8555081_33f8146.zm41": {
+  "sha1": "b25a64e4b2dca07c567648401100e04e89bbcddb",
+  "size": 65536
+ },
+ "i8580111_15f6637.bin": {
+  "sha1": "c68d52a2e5fbd303225ebb006f91869b29ef700a",
+  "size": 65536
+ },
+ "i8580111_15f6639.bin": {
+  "sha1": "13bb39225757b89749af70e881af0228673dbe0c",
+  "size": 65536
+ },
+ "ibm_6277356_ega_card_u44_27128.bin": {
+  "sha1": "dc0794499b3e499c5777b3aa39554bbf0f2cc19b",
+  "size": 16384
+ },
+ "ibm_vga.bin": {
+  "sha1": "7b8b0e22ecd002d43d5ed1bb9f9a63d9b9948032",
+  "size": 32768
+ },
+ "ibm_xebec_62x0822_1985.bin": {
+  "sha1": "de970bcc5c6f1b588fbc4c76617165ce8eb2bf1d",
+  "size": 4096
+ },
+ "ibmat_62x0820.u27": {
+  "sha1": "ff9373c1a1f34a32fb6acdabc189c61b01acf9aa",
+  "size": 32768
+ },
+ "ibmat_62x0821.u47": {
+  "sha1": "2a1aeb9ae3cd7e60fc4c383ca026208b82156810",
+  "size": 32768
+ },
+ "ibmpc_pc102782.bin": {
+  "sha1": "40fce6a94dda4328a8b608c7ae2f39d1dc688af4",
+  "size": 8192
+ },
+ "ibmpcjr_bios.rom": {
+  "sha1": "1f5f7013f18c08ff50d7942e76c4fbd782412414",
+  "size": 65536
+ },
+ "ibmps1_2121_fc0000.bin": {
+  "sha1": "8737d805444837023a58702279f8fe6e7f08e7ba",
+  "size": 262144
+ },
+ "ibmps1_2133_PS1_2133_52G2974_ROM.bin": {
+  "sha1": "758e161353f6781c39ac67f1ba293c14038b17dc",
+  "size": 131072
+ },
+ "ibmps1es_f80000.bin": {
+  "sha1": "20292744ef6477d2c44194858ac9ed9cba21dc6a",
+  "size": 524288
+ },
+ "ibmps1es_ibm_1057757_24-05-90.bin": {
+  "sha1": "925ed0e98f9f2997cb86554ef384bcfaf2a4ecbe",
+  "size": 131072
+ },
+ "ibmps1es_ibm_1057757_29-15-90.bin": {
+  "sha1": "f6b5785002dd628b6b1fb3bb101e076299eba3b6",
+  "size": 131072
+ },
+ "ibmps2_m30_286_33f5381a.bin": {
+  "sha1": "d7f1777077a8df43c3c14d175b9709bd3969c4b1",
+  "size": 131072
+ },
+ "ibmps2_m70_type3_70-a_even.bin": {
+  "sha1": "37a578a5d210016c5c3a78eef1a6b2cda3dde95d",
+  "size": 65536
+ },
+ "ibmps2_m70_type3_70-a_odd.bin": {
+  "sha1": "2ef751c67a6fb151d0419e30e5521fd1276d0a7d",
+  "size": 65536
+ },
+ "ibmps2_m70_type4_70-b_even.bin": {
+  "sha1": "37e85be37e507d75e8723fbe0c039ae7c6633901",
+  "size": 65536
+ },
+ "ibmps2_m70_type4_70-b_odd.bin": {
+  "sha1": "354b7ab50fb4619f34bd4f5f455b0fa69245bdb0",
+  "size": 65536
+ },
+ "ibmxt286_BIOS_5162_21APR86_U34_78X7460_27256.BIN": {
+  "sha1": "7be669fbb998d8b4626fefa7cd1208d3b2a88c31",
+  "size": 32768
+ },
+ "ibmxt286_BIOS_5162_21APR86_U35_78X7461_27256.BIN": {
+  "sha1": "ec7c10087dbd53f9c6d1174e8f14212e2aec1818",
+  "size": 32768
+ },
+ "ibmxt_1501512.u18": {
+  "sha1": "6bac726d8d033491d52507278aa388ec04cf8b7e",
+  "size": 32768
+ },
+ "ibmxt_5000027.u19": {
+  "sha1": "2aa781a698a21c332398d9bc8503d4f580df0a05",
+  "size": 32768
+ },
+ "ibmxt_xt.rom": {
+  "sha1": "c6eeb47349772587a663d483e2670034f230c2a4",
+  "size": 65536
+ },
+ "ide_at.bin": {
+  "sha1": "c0053710ebac15284e740889967d73a6657734c7",
+  "size": 8192
+ },
+ "ide_at_1_1_5.bin": {
+  "sha1": "3fc07d174924e7c48b4758a7ba76ecd5362bd75b",
+  "size": 8192
+ },
+ "ide_xt.bin": {
+  "sha1": "509504c1c54842bcd24cdd318bcf6fb0ece09c33",
+  "size": 8192
+ },
+ "infowaym_1006bs0_.bi1": {
+  "sha1": "602d5c11dbc63df02ecf9130dd0e6063286693fb",
+  "size": 53376
+ },
+ "infowaym_1006bs0_.bio": {
+  "sha1": "a74af62a3e02d4efe98d44d3ab14ed1204f9e583",
+  "size": 65664
+ },
+ "jukopc_000o001.bin": {
+  "sha1": "0b343f3028ca06c9e6dc69427d1b15a47c74b9fc",
+  "size": 8192
+ },
+ "kasan_ksc5601.rom": {
+  "sha1": "1358feb2ccaca040a176bedc7c256ec481351b41",
+  "size": 524288
+ },
+ "kmxc02_3ctm005.bin": {
+  "sha1": "001642016a3c02b031d739bd8b0fcff9470e86d2",
+  "size": 65536
+ },
+ "leadingedge_modelm_Leading Edge - Model M - BIOS ROM - Version 4.71.bin": {
+  "sha1": "6c35adf6a8da149e420b5aa8dd0e18e02488cfa0",
+  "size": 16384
+ },
+ "ltxt_27c64.bin": {
+  "sha1": "62f17c408be0036d00a182e94c5c88b83d46b625",
+  "size": 8192
+ },
+ "lxt3_27c64d.bin": {
+  "sha1": "59b1f8dd6fe981ef9a7700adebf6e1adda7cee90",
+  "size": 8192
+ },
+ "mach64gx_bios.bin": {
+  "sha1": "c5571479c26c3655289cb191834795960202304b",
+  "size": 65536
+ },
+ "mda.rom": {
+  "sha1": "c2a8b10808bf51a3c123ba3eb1e9dd608231916f",
+  "size": 8192
+ },
+ "megapc_211253-bios hi.u19": {
+  "sha1": "376d483db2bd1c775d46424e1176b24779591525",
+  "size": 65536
+ },
+ "megapc_41651-bios lo.u18": {
+  "sha1": "14fd39ec12df7fae99ccdb0484ee097d93bf8d95",
+  "size": 65536
+ },
+ "mr386dx_opt495sx.mr": {
+  "sha1": "540177fe2c10e20037893c9763b0bf6e35163c9c",
+  "size": 65536
+ },
+ "ncr_pc4i_NCR_PC4i_BIOSROM_1985.BIN": {
+  "sha1": "0d5d96fbc36089ca4d893b0db84faffa8043a5e4",
+  "size": 16384
+ },
+ "oli_go481_hi.bin": {
+  "sha1": "f397e3ddd3885666e3151fb4f681abf47fef36ba",
+  "size": 32768
+ },
+ "oli_go481_lo.bin": {
+  "sha1": "b93aa9d45942e98fb4932b4db34b82d459060adf",
+  "size": 32768
+ },
+ "olivetti_m24_olivetti_m24_version_1.43_high.bin": {
+  "sha1": "1066dcc849e6289b5ac6372c84a590e456d497a6",
+  "size": 8192
+ },
+ "olivetti_m24_olivetti_m24_version_1.43_low.bin": {
+  "sha1": "13423011a9bae3f3193e8c199f98a496cab48c0f",
+  "size": 8192
+ },
+ "oti037_bios.bin": {
+  "sha1": "39186d0e2034d18e8a603dc291abfe956f03f616",
+  "size": 65536
+ },
+ "oti067_bios.bin": {
+  "sha1": "bfb5aced04516eb86087963dbab6b617380aa9c4",
+  "size": 32768
+ },
+ "p55t2p4_0207_j2.bin": {
+  "sha1": "a8870f2f3767cda8e28662c7880b87e904c2e11d",
+  "size": 131072
+ },
+ "p55tvp4_tv5i0204.awd": {
+  "sha1": "eb3d9d83d3afb1722e06bc3872dbfc754f01a612",
+  "size": 131072
+ },
+ "p55va_va021297.bin": {
+  "sha1": "b9e665097c09a9b8cb95fb3261d8494bb2a57a0a",
+  "size": 131072
+ },
+ "pb410a_PB410A.080337.4ABF.U25.bin": {
+  "sha1": "1f2d9a63848ed7f4b8a3616a9050ae84b38aaea6",
+  "size": 131072
+ },
+ "pb520r_1009bc0r.bi1": {
+  "sha1": "0fac07b8226f2960c209df82732dbbf66a347f65",
+  "size": 53376
+ },
+ "pb520r_1009bc0r.bio": {
+  "sha1": "8d902091de4f7545f4cadd1a0c50e919f5570926",
+  "size": 65664
+ },
+ "pb520r_gd5434.bin": {
+  "sha1": "1ee70f6cc3c7b9a9afb402a1bc939f9f2e0cc739",
+  "size": 65536
+ },
+ "pb570_1007by0r.bi1": {
+  "sha1": "385be2c91c160458344df398fa0d2138fb543666",
+  "size": 53376
+ },
+ "pb570_1007by0r.bio": {
+  "sha1": "e93d623b9d507e371b9efd9314349d1bd98ef4e2",
+  "size": 65664
+ },
+ "pb570_gd5430.bin": {
+  "sha1": "b72edc318710c46c9cb280e9b1b3c9f8a34844f2",
+  "size": 65536
+ },
+ "pb_l300sx_pb_l300sx.bin": {
+  "sha1": "c04ca856a066823c90d93782613d67abf8f47bab",
+  "size": 65536
+ },
+ "pc1512_40043.v1": {
+  "sha1": "7781d4717917262805d514b331ba113b1e05a247",
+  "size": 8192
+ },
+ "pc1512_40044.v1": {
+  "sha1": "74002f5cc542df442eec9e2e7a18db3598d8c482",
+  "size": 8192
+ },
+ "pc1512_40078.ic127": {
+  "sha1": "bc8dc4dcedeea5bc1c04986b1f105ad93cb2ebcd",
+  "size": 8192
+ },
+ "pc1640_40043.v3": {
+  "sha1": "447eff2057e682e51b1c7593cb6fad0e53879fa8",
+  "size": 8192
+ },
+ "pc1640_40044.v3": {
+  "sha1": "a055ea7e933d137623c22fe24004e870653c7952",
+  "size": 8192
+ },
+ "pc1640_40100": {
+  "sha1": "98302006ee38a17c09bd75504cc18c0649174e33",
+  "size": 32768
+ },
+ "pc200_40109.bin": {
+  "sha1": "99663bfb61798526e092205575370c2ad34249a1",
+  "size": 32768
+ },
+ "pc200_pc20v2.0": {
+  "sha1": "8b4b2afea543b96b45d6a30365281decc15f2932",
+  "size": 8192
+ },
+ "pc200_pc20v2.1": {
+  "sha1": "4135102a491b25fc659d70b957e07649f3eacf24",
+  "size": 8192
+ },
+ "pc2086_40179.ic129": {
+  "sha1": "b882e97ee81b9ba0e7d969c63da3f2052f23b4b9",
+  "size": 8192
+ },
+ "pc2086_40180.ic132": {
+  "sha1": "93e045609466fcec74e2bb72578bb7405281cf7b",
+  "size": 8192
+ },
+ "pc2086_40186.ic171": {
+  "sha1": "5df1efe4203cd076292a7713bd7ebd1196dca577",
+  "size": 32768
+ },
+ "pc3086_c000.bin": {
+  "sha1": "382d2028e0dc5515a68843829563ce29018edb08",
+  "size": 32768
+ },
+ "pc3086_fc00.bin": {
+  "sha1": "98c344831cc4dc59ebb39bbb1961964a8d39fe20",
+  "size": 16384
+ },
+ "pc5086_sys_rom.bin": {
+  "sha1": "3184d2a8107927631414bdcc4863e22b5a282def",
+  "size": 65536
+ },
+ "pci_sg.rom": {
+  "sha1": "2783fcff01fc55fb3489e63d5dc9377ddc6f19a3",
+  "size": 32768
+ },
+ "ppc512_40107.v2": {
+  "sha1": "4dbde6b9e9500298bb6241a8daefd85927f1ad28",
+  "size": 8192
+ },
+ "ppc512_40108.v2": {
+  "sha1": "b4dbf11b39378ab4afd2107d3fe54a99fffdedeb",
+  "size": 8192
+ },
+ "ppc512_40109.bin": {
+  "sha1": "99663bfb61798526e092205575370c2ad34249a1",
+  "size": 32768
+ },
+ "pxxt_000p001.bin": {
+  "sha1": "a527403c92b6bf4fd876f516c18ca499cb7d4b13",
+  "size": 8192
+ },
+ "revenge_1009af2_.bi1": {
+  "sha1": "1d0c6e75f2d08e15804be07c7fe23ecebe9ca49b",
+  "size": 49280
+ },
+ "revenge_1009af2_.bio": {
+  "sha1": "8be89a060204002d636c965d064e6cac1eeb9534",
+  "size": 65664
+ },
+ "s3_764.bin": {
+  "sha1": "50502df4d16c38608bcaea758791fc3419ee4589",
+  "size": 32768
+ },
+ "s3virge.bin": {
+  "sha1": "78de1b410c171c037735d08c7f1ca3798e3e8425",
+  "size": 32768
+ },
+ "sigma400_bios.rom": {
+  "sha1": "cd69f452cc529e0846c36cf8c35d598abc2f9f50",
+  "size": 8192
+ },
+ "sigma400_font.rom": {
+  "sha1": "9528ea479fdb5596782e30672eb3a5a1b11874d2",
+  "size": 8192
+ },
+ "sis496_sis496-1.awa": {
+  "sha1": "9549f7ae63f463473119c64bb74df884c7b0e70c",
+  "size": 131072
+ },
+ "spc4200p_u8.01": {
+  "sha1": "27539e68a60e2be4d51d4f463c17379a71559dcb",
+  "size": 65536
+ },
+ "spc4216p_7101.u8": {
+  "sha1": "f28b2b1ec5da3368221b80ca8a024d2d1ea1f1a3",
+  "size": 32768
+ },
+ "spc4216p_ac64.u10": {
+  "sha1": "a4a91390a6b803b0cff611fb497f77894dc8bac4",
+  "size": 32768
+ },
+ "spc4216p_phoenix.bin": {
+  "sha1": "2a24ab040f87a19670cb0003844e4dc39aaaa7b9",
+  "size": 65536
+ },
+ "spc4620p_31005h.u10": {
+  "sha1": "1f95678b985fc124c79d5e4c2d808b511c84be87",
+  "size": 65536
+ },
+ "spc4620p_31005h.u8": {
+  "sha1": "ae4ab20a90bafb55b1432bb464eb60b3ba0fa94f",
+  "size": 65536
+ },
+ "spc4620p_svb6120a_font.rom": {
+  "sha1": "ae0e907791ac806cf7a2883782a8a4ca23d00b1b",
+  "size": 524288
+ },
+ "spc6000a_3c80.u27": {
+  "sha1": "793d30daa7b5b60b3e829a0d76504eadb7c9852c",
+  "size": 16384
+ },
+ "spc6000a_9f80.u26": {
+  "sha1": "8e9957a41c39b6676eb781f7f792b5ff1cc1f318",
+  "size": 16384
+ },
+ "spc6033p_phoenix.bin": {
+  "sha1": "c9ba03a98042cf215c5f80a7adfb068bc2ad7958",
+  "size": 131072
+ },
+ "spc6033p_svb6120a_font.rom": {
+  "sha1": "ae0e907791ac806cf7a2883782a8a4ca23d00b1b",
+  "size": 524288
+ },
+ "super286tr_award.bin": {
+  "sha1": "de684d329c584946b2ef78c5aaeca973705029d8",
+  "size": 65536
+ },
+ "t1000_t1000.rom": {
+  "sha1": "0ff532f295a40716f53949a2fd64d02bf76d575a",
+  "size": 32768
+ },
+ "t1000_t1000font.rom": {
+  "sha1": "6cf54096d6cb351e6c63226b73d24540aa28c46c",
+  "size": 8192
+ },
+ "t1200_t1000font.rom": {
+  "sha1": "6cf54096d6cb351e6c63226b73d24540aa28c46c",
+  "size": 8192
+ },
+ "t1200_t1200_019e.ic15.bin": {
+  "sha1": "e95d704fd8df5bfb1ce486a03bd1d4b351041fe2",
+  "size": 32768
+ },
+ "t3100e_t3100e.rom": {
+  "sha1": "98f948387d4b00d2a78469efebb0f52e4d5236c7",
+  "size": 65536
+ },
+ "t3100e_t3100e_font.bin": {
+  "sha1": "55a03e793989e80cfd99fa08a8a75173f753fa75",
+  "size": 65536
+ },
+ "tandy1000hx_v020000.u12": {
+  "sha1": "976af8c04c3f6fde14d7047f6521d302bdc2d017",
+  "size": 131072
+ },
+ "tandy1000sl2_8079047.hu1": {
+  "sha1": "7deb71f14c2c418400b639d60066ab61b7e9df32",
+  "size": 262144
+ },
+ "tandy1000sl2_8079048.hu2": {
+  "sha1": "10f1a7204f69b82a18bc94a3010c9660aec0c802",
+  "size": 262144
+ },
+ "tandy_tandy1t1.020": {
+  "sha1": "2f5ac8921b7cba56b02122ef772f5f11bbf6d8a2",
+  "size": 65536
+ },
+ "tg286m_ami.bin": {
+  "sha1": "0fa0e86a0599e8500bb9ca9efa77cfc9c82a9dc0",
+  "size": 65536
+ },
+ "tg_ksc5601.rom": {
+  "sha1": "b2ac3c09bd434580ebd76c9d378de2a2f1157aa9",
+  "size": 524288
+ },
+ "tgkorvga.bin": {
+  "sha1": "80d6c024dd71977049daab207f19fb785dd9a17a",
+  "size": 32768
+ },
+ "to16_pc_TO16_103.bin": {
+  "sha1": "fcc61bbfe49164c4b79c368fb782d1ecc17e0a42",
+  "size": 32768
+ },
+ "trantor_t130b_bios_v2.14.bin": {
+  "sha1": "7d08bb6f7c30a6aeb1abc0aa4505d222469d94ab",
+  "size": 8192
+ },
+ "trident.bin": {
+  "sha1": "5abf95fb59c6e3345d08cbb1614757d8954a77b9",
+  "size": 32768
+ },
+ "tulip_tc7_tc7be.bin": {
+  "sha1": "a7e28c2978faaa9c5ccab32932ef1391c1b3d35a",
+  "size": 16384
+ },
+ "tulip_tc7_tc7bo.bin": {
+  "sha1": "77ce220914863f482a3a983b43ff8ca8c72b470c",
+  "size": 16384
+ },
+ "tvga9000b_BIOS.BIN": {
+  "sha1": "9cff3cb86a85dcbd34234bc4fd1dd0011f3d48fd",
+  "size": 65536
+ },
+ "vgaedge16.vbi": {
+  "sha1": "c0ee6f9443fa82c0fef5d497b3e76aa3077f1865",
+  "size": 32768
+ },
+ "voodoo3_2000_2k11sd.rom": {
+  "sha1": "a57ebf17ef42fb7240b0b681a2b78dc3db1f4c8f",
+  "size": 32768
+ },
+ "voodoo3_3000_3k12sd.rom": {
+  "sha1": "2825b702633553c7a7a3daea98b56f67bd016030",
+  "size": 65536
+ },
+ "vs440fx_1018CS1_.BI1": {
+  "sha1": "7702035793091d408c881b2e1a09d3eb46f1d43f",
+  "size": 65664
+ },
+ "vs440fx_1018CS1_.BI2": {
+  "sha1": "0fd12e8f02bacafb959a296e0830526ae608823d",
+  "size": 65664
+ },
+ "vs440fx_1018CS1_.BI3": {
+  "sha1": "25b0f0420d96f13b4134f627a459144d06ccab52",
+  "size": 41088
+ },
+ "vs440fx_1018CS1_.BIO": {
+  "sha1": "dd70ac80c7d92fbe1c3bc101a100374c9235055b",
+  "size": 65664
+ },
+ "vs440fx_1018CS1_.RCV": {
+  "sha1": "a6c0fba4c17bf462094ff1a5f96ebc563d77ceff",
+  "size": 16384
+ },
+ "win486_ali1429g.amw": {
+  "sha1": "72c60172fb1ba77c9b24b06b7755f0a16f0b3a13",
+  "size": 65536
+ },
+ "wy700.rom": {
+  "sha1": "8e4bd9a7f51d643cf5c820bcddafac9392dfb3ab",
+  "size": 16384
+ },
+ "xi8088_bios-xi8088.bin": {
+  "sha1": "cc1044e52c6ef272d821e4a0ff87c25e300282d1",
+  "size": 131072
+ },
+ "zappa_1006bs0_.bi1": {
+  "sha1": "602d5c11dbc63df02ecf9130dd0e6063286693fb",
+  "size": 53376
+ },
+ "zappa_1006bs0_.bio": {
+  "sha1": "a74af62a3e02d4efe98d44d3ab14ed1204f9e583",
+  "size": 65664
+ },
+ "zdsupers_z184m v3.1d.10d": {
+  "sha1": "f2f28979798874386ca8ba3dd3ead24ae7c2aeb4",
+  "size": 32768
+ }
+}

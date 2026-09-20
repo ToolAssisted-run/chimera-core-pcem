@@ -20,14 +20,26 @@ import re
 import sys
 from pathlib import Path
 
-# The ten hashes the sources publish (PLAN.md 5.5). Everything else is
-# declared without a hash, which the engine allows for a file no one can pin,
-# and which M2 should replace with hashes from a known-good v17 set.
-KNOWN_SHA1 = {
-    "ga686bx/6BX.F2a": "637E1B3863694FFD15A40585FD563329BE3873D4",
-    "voodoo3_3000/3k12sd.rom": "2825B702633553C7A7A3DAEA98B56F67BD016030",
-    "awe32.raw": "6AC3C1317C1ACB83902397D7767763CCA4DE357A",
-}
+# SHA1 and size for every ROM, keyed by firmware id, in tools/firmware-sha1.json
+# beside this script. It is an INPUT to generation, not something written into
+# the generated file by hand, so the declaration can always be rebuilt.
+#
+# This matters more than it looks. Chimera's Scan Folder is hash-first -
+# FirmwareLocator.FindFor matches on SHA1 when the declaration has one and
+# only falls back to the name - so a declaration without hashes resolves
+# NOTHING against a folder full of correct ROMs, which is exactly what
+# happened. The size is declared too: it is a cheap first filter before a
+# candidate is hashed at all.
+def load_hashes():
+    path = Path(__file__).resolve().parent / "firmware-sha1.json"
+    if not path.exists():
+        print("WARNING: no firmware-sha1.json; entries will carry no hash",
+              file=sys.stderr)
+        return {}
+    return json.loads(path.read_text())
+
+
+HASHES = load_hashes()
 
 
 def rows(text, header):
@@ -56,6 +68,14 @@ def files_of(cell):
     parts = [p.strip() for p in cell.split("<br>")]
     out = []
     for p in parts:
+        # PLAN.md cites the source file for a few rows, e.g.
+        #   awe32.raw (`src/sound_emu8k.c`, `src/sound_sb.c`)
+        # and that reference leaked into the firmware id, which made the entry
+        # unmatchable no matter how good its hash was. A parenthetical
+        # containing a backtick is a citation, never part of a filename.
+        cut = p.find(" (`")
+        if cut >= 0:
+            p = p[:cut].strip()
         if p.startswith("(optional)") or p.lower().startswith("none"):
             continue
         p = p.strip("`")
@@ -74,11 +94,18 @@ def entry(path, display, description, cond):
         "id": flat,
         "display": display,
         "description": description,
-        "name": flat,
+        # id is the MOUNT name (what the guest fopen()s, flattened because the
+        # sandbox VFS has no directories). name is the hint the engine's
+        # name-matching fallback compares against a candidate file, so it has
+        # to be the real basename - "6BX.F2a", not "ga686bx_6BX.F2a", which
+        # matches nothing on anyone's disk.
+        "name": path.rsplit("/", 1)[-1],
         "label": path,
     }
-    if path in KNOWN_SHA1:
-        e["sha1"] = KNOWN_SHA1[path]
+    h = HASHES.get(flat)
+    if h:
+        e["sha1"] = h["sha1"].upper()
+        e["size"] = h["size"]
     e["requiredWhen"] = cond
     return e
 
