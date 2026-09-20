@@ -2,3 +2,4 @@
 src/
 build/
 minibox-diag.log
+# generated into waterbox/ by tools/gen-*.py at package time

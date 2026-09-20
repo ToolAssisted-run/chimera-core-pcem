@@ -1,0 +1,55 @@
+{
+  "_comment": [
+    "A PC takes two floppy drives with independent swap lists, a CD-ROM, and up",
+    "to two hard disks. Following the DOSBox-X core: the hard disk slot's file",
+    "SEEDS a writable image rather than being written in place, and what comes",
+    "back out is the whole disk, byte for byte, so it can be handed straight",
+    "back into this slot to carry on from.",
+    "There is deliberately no slot for a PCem .cfg: the machine is composed from",
+    "settings, and letting a user paste in a config would reintroduce exactly the",
+    "desync class the sandbox removes."
+  ],
+  "slots": [
+    {
+      "id": "floppyA",
+      "title": "Floppy disks (drive A:)",
+      "min": 0,
+      "max": -1,
+      "formats": ["img", "ima", "dsk", "fdi", "86f", "td0", "imd"],
+      "help": "Images for drive A:. The first is in the drive at boot; the order here is the swap order. The drive itself - 360K, 1.2M, 1.44M, 2.88M - is the Floppy Drive A setting, and an image the drive cannot physically read will not mount."
+    },
+    {
+      "id": "floppyB",
+      "title": "Floppy disks (drive B:)",
+      "min": 0,
+      "max": -1,
+      "formats": ["img", "ima", "dsk", "fdi", "86f", "td0", "imd"],
+      "help": "Images for drive B:, the same way. A machine with only one drive ignores this."
+    },
+    {
+      "id": "cdrom",
+      "title": "CD-ROMs",
+      "min": 0,
+      "max": -1,
+      "formats": ["iso", "cue"],
+      "help": "Discs for the CD-ROM drive. PCem reads the image itself, so a .cue with its tracks beside it works. Needs a machine with a CD-ROM controller - the CD-ROM settings appear once there is a disc here."
+    },
+    {
+      "id": "hdd",
+      "title": "Hard disk (C:)",
+      "min": 0,
+      "max": 1,
+      "formats": ["img", "hdd", "vhd", "hdi"],
+      "help": "A hard disk image, mounted as drive C:. It seeds a writable disk rather than being written in place: writes persist for the session, travel in savestates, and can be exported as save data - and an exported image can be given back here to continue from. Geometry is derived from the file unless the Hard Disk settings say otherwise."
+    },
+    {
+      "id": "hdd2",
+      "title": "Second hard disk (D:)",
+      "min": 0,
+      "max": 1,
+      "formats": ["img", "hdd", "vhd", "hdi"],
+      "help": "A second hard disk, the same way."
+    }
+  ],
+  "atLeastOneOf": [["floppyA", "floppyB", "cdrom", "hdd"]]
+}

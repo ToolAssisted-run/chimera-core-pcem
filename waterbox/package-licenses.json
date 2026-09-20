@@ -1,0 +1,48 @@
+{
+  "package": "pcem",
+  "effectiveTerms": "GPL-2.0",
+  "commercialUse": "allowed under the GPL",
+  "note": "PCem is GPL-2.0 with NO 'or later' grant - its COPYING is the GPLv2 text and its README says 'PCem is licensed under GPL v2.0' with no version clause. The combined work is therefore GPL-2.0-only and nothing GPL-3.0 may ever be linked in. No ROM or firmware file is in this package and none ever will be: PCem's own words are 'NO COPYRIGHTED ROM FILES ARE INCLUDED NOR WILL THEY BE.'",
+  "components": [
+    {
+      "name": "chimera-core-pcem (integration)",
+      "license": "GPL-2.0",
+      "url": "https://github.com/ToolAssisted-run/chimera-core-pcem",
+      "commit": "{selfCommit}",
+      "file": "LICENSE"
+    },
+    {
+      "name": "PCem (TASVideos fork)",
+      "license": "GPL-2.0",
+      "url": "https://github.com/TASEmulators/pcem",
+      "commit": "{submodule:extern/pcem}",
+      "file": "extern/pcem/COPYING",
+      "sourceUrl": "https://github.com/TASEmulators/pcem/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "DOSBox pieces bundled by PCem (dbopl, cdrom_image)",
+      "license": "GPL-2.0-or-later",
+      "url": "https://www.dosbox.com/",
+      "file": "extern/pcem/COPYING"
+    },
+    {
+      "name": "Nuked OPL3",
+      "license": "LGPL-2.1",
+      "url": "https://github.com/nukeykt/Nuked-OPL3",
+      "file": "extern/pcem/COPYING",
+      "_note": "PCem's copy carries no per-file header; upstream is LGPL-2.1, which section 3 permits converting to GPLv2 for the combined work."
+    },
+    {
+      "name": "reSID-FP",
+      "license": "GPL-2.0-or-later",
+      "url": "https://github.com/libsidplayfp/libsidplayfp",
+      "file": "extern/pcem/COPYING"
+    },
+    {
+      "name": "minivhd",
+      "license": "MIT",
+      "url": "https://github.com/sherman89/minivhd",
+      "file": "extern/pcem/src/minivhd/LICENSE"
+    }
+  ]
+}

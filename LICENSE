@@ -1,0 +1,10 @@
+This repository's own integration code - everything under waterbox/ and
+tools/, and the patches under patches/ - is licensed GPL-2.0, the same terms
+as PCem, because it is compiled together with PCem into one work.
+
+PCem is Copyright (c) Sarah Walker and contributors, licensed GPL-2.0 with no
+"or later" grant. See extern/pcem/COPYING.
+
+NO COPYRIGHTED ROM OR FIRMWARE FILE IS IN THIS REPOSITORY, and none ever will
+be. The firmware a machine needs is declared in waterbox/waterbox.config by
+name and hash; you supply the files.
