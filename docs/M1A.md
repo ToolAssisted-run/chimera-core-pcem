@@ -136,11 +136,18 @@ than an artefact of a halted guest.
 inside the NTFS format and file-copy phase.** That phase is the only one
 that does sustained host disk I/O: PCem's `hdd_file.c` writes the image
 with plain `fseeko64`/`fwrite` (`hdd_file.c:131-194`), and here that is a
-sparse file on ext4 inside WSL2's VHDX. **It is a reasonable expectation,
-and UNPROVEN, that this dip does not survive the port**, because PLAN.md
-4.2 makes the disk a sparse overlay in guest memory with no host write at
-all. It was not tested by re-running the image on tmpfs, so it is
-recorded as a real observed dip and nothing more.
+sparse file on ext4 inside WSL2's VHDX. ~~**It is a reasonable expectation, and UNPROVEN, that this dip does not
+survive the port**~~ - **that expectation was wrong, and `XP.md` section
+3b has the measurement.** The same workload with the disk image on
+**tmpfs**, so there is no host disk I/O at all, dips identically: floor
+17.0% against 18.1%, and the same count of sub-100% windows. The cause is
+not the host's disk. It is PCem's recompiler compiling code it has never
+seen, which correlates with the dips at Spearman -0.86 and is a thousand
+times more active in the slow windows than the fast ones.
+
+*(Measured on the cold-boot workload. This particular NTFS format and
+file copy was not itself re-run on tmpfs, so for this phase the host-I/O
+explanation is unsupported rather than strictly disproven.)*
 
 ## 4. The branch
 

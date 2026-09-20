@@ -68,6 +68,16 @@ JoinWorkgroup=WORKGROUP
 InstallDefaultComponents=Yes
 """
 
+# A [GuiRunOnce] block that arms XP's built-in OpenGL screensaver, to put a
+# reproducible load on the finished desktop, was tried and removed. Setup
+# rejects it: "Line NN of the INF file \winnt.sif is invalid", before Setup
+# even starts. Both an INF-escaped inner quote (`""HKCU\Control Panel...""`)
+# and an unquoted value carrying plain inner quotes were refused, and a
+# literal %windir% is a second, separate error because an INF treats %NAME%
+# as a string-table token. The registry path needs quoting because
+# "Control Panel" has a space in it, so there is no form left to try here.
+# Load the desktop some other way and keep this file minimal.
+
 
 def fat12_set(fat, cluster, value):
     off = cluster + cluster // 2

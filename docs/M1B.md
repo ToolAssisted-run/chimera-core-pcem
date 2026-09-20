@@ -236,6 +236,48 @@ RAM, and the levers for it (how often the greenzone stores a frame, and
 whether PCem's RAM can be told apart from its scratch) belong to M3 and
 the engine, not to the recompiler.
 
+## 6a. Savestates round-trip, including into a brand new host
+
+Added after the first M1b report, which flagged this as the most
+load-bearing of the remaining unknowns: states had been saved and sized
+but never loaded back. **Both round-trip tests pass, bit-identically.**
+
+All three runs are the same 60 s of Windows XP Setup, guest build,
+default (mmap) arena - so the recompiler's generated code is **inside**
+the state, which is the case most in need of the test:
+
+| | blits | size | digest |
+|---|---|---|---|
+| baseline, no state work | 3630 | 720x400 | `55b90b678f1559cb` |
+| `--roundtrip`: save + load around **every** chunk (60 cycles) | 3630 | 720x400 | **`55b90b678f1559cb`** |
+| `--resume-at 30000`: save, **destroy the host**, build a new one, load, finish | 3630 | 720x400 | **`55b90b678f1559cb`** |
+
+The third is the reopened-project case and the stronger of the two: the
+second host is a fresh `wbx_create_host` at a different place in the
+host's address space, brought up through `Init` and `wbx_seal` before
+the load replaces everything that produced. A host address kept in guest
+state would show here. None does.
+
+One thing the API required that is worth writing down: **a state can only
+be loaded into a host that has been sealed.** Loading into a freshly
+created host fails with `Not sealed!`; the new host has to be run through
+`Init` then `wbx_seal` first, even though the load then overwrites all of
+it.
+
+**Proven to bite.** `--resume-no-load` builds the new host and
+deliberately does not load the state, so it carries on from reset:
+
+```
+blits=1527  digest=125afdabe7aebf83      (against 3630 / 55b90b678f1559cb)
+```
+
+Both the frame count and the digest move, so the passing result is not
+consistent with a load that silently did nothing.
+
+Still unproven here: round-trip across a **resolution change** (libTAS
+names that as a PCem hazard), and round-trip on a machine with a writable
+hard disk attached - this configuration boots from CD only.
+
 ## 6b. Two gate lessons, both found by trying to break this one
 
 `gates.md` asks that every leg be proven to bite. Doing that here found
@@ -282,11 +324,10 @@ reason.
   10.4% after an hour. PCem recycles blocks, so it may stay bounded, but
   that was not run. If the arena fills, both the fault count and the
   state size change. **UNPROVEN.**
-- **Savestate round-trip.** States were saved (273-287 MiB, 0.2-0.3 s)
-  and their sizes compared. **No state was loaded back and no run was
-  finished from one.** Determinism across a save/load is entirely
-  untested, and with the mmap arena the generated code is in the state,
-  which is the case that needs testing most.
+- ~~**Savestate round-trip.**~~ **DONE, and it passes - see section 6a.**
+  Save+load around every chunk, and a brand new host finishing the run
+  from a state, both bit-identical. What remains untested is a round-trip
+  across a resolution change, and one with a writable hard disk attached.
 - **That the end-state digest would catch a subtle divergence.** It
   demonstrably does not catch a halved CPU clock (section 6b). It is
   evidence that the two builds agree, not proof.

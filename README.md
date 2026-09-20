@@ -13,6 +13,7 @@ instruction, until he says otherwise.
 | `docs/UPSTREAM.md` | PCem or 86Box, and what to take from 86Box |
 | `docs/M1A.md` | the native speed measurement and the green/amber/red decision |
 | `docs/M1B.md` | the sandbox JIT spike: does the recompiler work in miniBox, and what it costs |
+| `docs/XP.md` | Windows XP installed and measured to the desktop, and what actually costs |
 | `extern/pcem` | upstream `TASEmulators/pcem`, pinned (see PLAN.md, "The repository") |
 | `configs/` | PCem `.cfg` files reproducing the TASVideos published configurations |
 | `patches/` | full-file patches against `extern/pcem` |
@@ -31,6 +32,11 @@ instruction, until he says otherwise.
   15%; the 120 MiB RWX arena contributes 1.3 dirtied pages per epoch, not
   30,720. `docs/M1B.md`. One amber finding about epoch rate, and a latent
   upstream `%rbx` bug found and fixed (`patches/0002`).
+- **Windows XP installs and runs** (2026-09-20). Idle desktop 365%, XP's
+  graphical installer 88% median, cold boot floor 18.7%. Every dip is
+  PCem's recompiler meeting code it has never seen - not the Voodoo 3's
+  rasteriser and not host disk I/O, both of which were tested and ruled
+  out. `docs/XP.md`.
 - M2 (the machine, native) is next.
 
 ## Building the M1a harness

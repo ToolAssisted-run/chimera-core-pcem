@@ -33,6 +33,12 @@ extern void paths_init(void);
 extern FILE *pclogf;
 extern void sound_init(void);
 extern void savenvr(void);
+/* PCem latches these once per emulated second in runpc() (pc.c:530-560).
+ * They are how the recompiler's churn is read: new_blocks is how much code
+ * had to be generated, flushes is how often the whole cache was thrown
+ * away, evicted is blocks dropped because their guest page was written. */
+extern int cpu_recomp_blocks_latched, cpu_new_blocks_latched;
+extern int cpu_recomp_flushes_latched, cpu_recomp_evicted_latched;
 
 /* ---------------------------------------------------------------- state */
 
@@ -335,9 +341,12 @@ int main(int argc, char *argv[])
                 }
                 t = now_s();
                 if (t - last_report >= 1.0) {
-                        printf("  t=%6.1fs emulated=%8llu ms  window speed=%6.1f%%\n",
+                        printf("  t=%6.1fs emulated=%8llu ms  window speed=%6.1f%%"
+                               "  recomp blocks=%d new=%d flush=%d evict=%d\n",
                                t - t0, (unsigned long long)done,
-                               100.0 * (double)(done - last_done) / ((t - last_report) * 1000.0));
+                               100.0 * (double)(done - last_done) / ((t - last_report) * 1000.0),
+                               cpu_recomp_blocks_latched, cpu_new_blocks_latched,
+                               cpu_recomp_flushes_latched, cpu_recomp_evicted_latched);
                         fflush(stdout);
                         last_report = t;
                         last_done = done;
