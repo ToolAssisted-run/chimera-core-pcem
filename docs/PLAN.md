@@ -192,6 +192,18 @@ Read from the clone in `src/tas-pcem` at `fd4585b`.
   `thread-pthread.c`, `win-midi.c`, `midi_alsa.c`). The platform layer is
   what a Chimera driver replaces; it is 5% of the tree and it is cleanly
   separated behind `ibm.h`'s small set of externs.
+
+  **MEASURED at M1a, and much better than this estimate.** Those 12,950
+  lines are what the platform layer *contains*; what it *exports to the
+  emulation core* is **27 symbols and one function pointer**, enumerated
+  by linking the core with no platform layer at all and reading the
+  undefined references (`M1A.md` section 1). The pointer is
+  `video_blit_memtoscreen_func` (`src/video.c:733`). A driver satisfying
+  all 28 is 260 lines (`tools/driver.c`), and it already does the real
+  work for video, keyboard, paths and the fatal path. **M2's three weeks
+  should be re-read against that**: the platform strip is not a
+  13,000-line rewrite, it is 28 definitions, and most of them are already
+  written.
 - **93 selectable machines** (`MODEL models[]`, `src/model.c`), 97
   romsets in the enum (`src/ibm.h:171-271`) of which four -
   `ROM_PX386`, `ROM_MISC286`, `ROM_IBMAT386`, `ROM_PCI486` - are
@@ -1123,13 +1135,16 @@ construction.
 
 Three specifics read from PCem's backend:
 
-1. **The allocation call needs a one-line patch.**
-   `src/codegen_allocator.c:33`:
-   `mmap(0, MEM_BLOCK_NR * MEM_BLOCK_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, 0, 0)`
-   passes fd `0` rather than `-1`. Linux ignores the fd for `MAP_ANONYMOUS`;
-   whether miniBox validates it is **UNCHECKED**. Passing NULL as the
-   address is already correct (a nonzero hint is `MAP_FIXED` to the
-   sandbox - the trap PPSSPP and PCSX2 both had to patch).
+1. ~~**The allocation call needs a one-line patch.**~~ **MEASURED AT M1b:
+   it does not. Risk deleted.** `src/codegen_allocator.c:34` passes fd `0`
+   rather than `-1`, and miniBox's `mmap` never reads the fd at all -
+   `dispatch_inner`'s `NR_mmap` case (`host.c:337-357`) uses `a1..a4` and
+   discards the rest. PCem's call is accepted exactly as emulibc's `-1` is.
+   Passing NULL as the address was already correct and matters more than it
+   looked: a nonzero hint is `MAP_FIXED` to the sandbox **whether or not
+   `MAP_FIXED` is set**, because the flag is never read - the decision is
+   made purely on `addr != 0` (`memblock.c:827-875`). That is the trap
+   PPSSPP had to patch.
 2. **Distance is not a problem.** `call()`
    (`src/codegen_backend_x86-64_ops.c:24-43`) picks between a `CALL rel32`
    and a `MOV R9, imm64; CALL R9`. Its near-call test is
@@ -1138,11 +1153,17 @@ Three specifics read from PCem's backend:
    is **never true**: every call PCem's x86-64 backend emits is already
    the absolute 64-bit form. Fortunate for a guest at a distant fixed
    base. (A signedness bug upstream, and one this port must not "fix".)
-3. **Self-modifying pages cost a fault each.** miniBox maps a clean RWX
-   page RX and faults on the first write per epoch
-   (`memblock.c:97`). A JIT that writes across 120 MiB of arena takes
-   30,000 extra faults per epoch in the worst case. **UNCHECKED** what
-   that costs; it is the single most likely performance surprise.
+3. ~~**Self-modifying pages cost a fault each.**~~ **MEASURED AT M1b:
+   1.3 pages an epoch, not 30,000.** The mechanism is real - miniBox maps a
+   clean RWX page RX and faults on the first write per epoch
+   (`memblock.c:97`) - but two things stop it biting. PCem touches only
+   **10.4%** of the 120 MiB it allocates (12.5 MiB, after five minutes of
+   Windows XP Setup), and an untouched page never faults; and a page written
+   in three consecutive epochs is promoted to **hot** and stops being held
+   read-only (`memblock.c:89-91`, `HOT_AFTER 3`), which is exactly a
+   recompiler's access pattern. Putting the arena in invisible memory, the
+   xemu remedy, measured about 10% SLOWER for 13.8 MiB saved on a 287 MiB
+   state, so it is available but not the default (see `M1B.md` section 3).
 
 **The interpreter-only fallback.** `exec386()` instead of
 `exec386_dynarec()` is a config flag away (`src/pc.c:514-519`), and the
@@ -1289,7 +1310,22 @@ Two items to settle before M1 is declared done:
   one-line `mmap` fd fix (7.5b). **Green** -> M2. **Red** (the JIT cannot
   run in the box and the interpreter is far too slow) -> stop.
 
-- **M2 - the machine, native (3 weeks).** Strip the platform layer:
+  **M1b DONE (2026-09-20): GREEN. See `M1B.md`.** The WHOLE emulation
+  core built for the guest, not the planned subset; it passes
+  `check-wbx.sh`; and it produces a **bit-identical** machine to the
+  native build on three workloads including 300 s of real Windows XP
+  Setup. The sandbox costs **15%** (floor 129.6% against native's
+  152.5%). The named risk did not materialise: the arena contributes
+  **1.3 dirtied pages per epoch**, not 30,720, because PCem touches only
+  10.4% of the 120 MiB it asks for and miniBox's hot-page rule exempts
+  what it does touch. Two corrections to this document follow in 7.5b.
+  One amber finding, not PCem's: at one epoch per emulated frame the
+  CPU-bound floor is 44.4%, so generic dirty-tracking on a 256 MB machine
+  is where M1a's headroom goes.
+
+- **M2 - the machine, native (2 weeks; was 3 before M1a measured the
+  platform surface at 28 symbols, see section 2).** Strip the platform
+  layer:
   `wx-*`, `soundopenal.c`, `thread-pthread.c`, `plat-*` replaced by
   `pcem-driver.cpp`. `video_blit_memtoscreen_func` to BGRA;
   `givealbuffer`/`givealbuffer_cd` to a per-frame vector; keyboard,
@@ -1329,8 +1365,9 @@ Two items to settle before M1 is declared done:
 
 ### Costs
 
-About **nine weeks to a shipping DOS/Windows-95 core** (M1-M4) if M1 is
-green, plus open-ended M5. That is comparable to DOSBox-X's own port and
+About **eight weeks to a shipping DOS/Windows-95 core** (M1-M4) if M1 is
+green, plus open-ended M5. (Nine before M1a; M2 lost a week when the
+platform surface turned out to be 28 symbols rather than 13,000 lines.) That is comparable to DOSBox-X's own port and
 cheaper than flycast's, because there is no renderer to write, no
 savestate system to neuter, no coroutine slicing to invent, and the
 hardest single problem - single-threading - is half-solved upstream by

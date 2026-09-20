@@ -1,3 +1,4 @@
 # The scratch clones used to read the sources are not part of this repository.
 src/
 build/
+minibox-diag.log
