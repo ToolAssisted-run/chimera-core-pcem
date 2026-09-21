@@ -525,6 +525,56 @@ else
 	report SKIP "a 4 GiB seed costs nothing" "no XP image at $xpimg"
 fi
 
+# ------------------- 4j. an AT-class machine POSTs without asking for F1
+# An AT keeps its equipment list in CMOS, and a BIOS that finds one floppy
+# drive where the CMOS says two stops at "162-System Options Not Set-(Run
+# SETUP)" and waits for F1. Every AT-class machine did that until the driver
+# started editing the CMOS to describe the machine the settings built.
+#
+# The assertion is not the text on the screen. It is that the machine got far
+# enough to BOOT: the marker probe fills the screen with '#', which no POST
+# stop can do. Measured: 81,479 lit pixels when it boots, 1,932 when it stops
+# at 162 - so the threshold is nowhere near either.
+atrom="$roms/ibmat/62x0820.u27"
+if [ -f "$atrom" ]; then
+	at="$work/hdd/at"; rm -rf "$at"; mkdir -p "$at"
+	cp "$roms/ibmat/62x0820.u27" "$at/ibmat_62x0820.u27"
+	cp "$roms/ibmat/62x0821.u47" "$at/ibmat_62x0821.u47"
+	cp "$gw/mda.rom" "$at/mda.rom"
+	cp "$roms/ibm_vga.bin" "$at/ibm_vga.bin"
+	cp "$work/hdd/marker.img" "$at/boot.img"
+	python3 - "$at" <<'ATSET'
+import json, sys
+d = sys.argv[1]
+json.dump({"system": "x86 PC", "machine": "ibmat - [286] IBM AT",
+           "cpu": "286/6", "fpu": "none", "dynarec": False, "memSizeKB": 640,
+           "videoCard": "vga - VGA", "soundCard": "none - None",
+           "hddController": "none - None", "cdDrive": "None",
+           "driveAType": "Auto", "driveBType": "None",
+           "fpsNumerator": 100, "fpsDenominator": 1}, open(d + "/settings", "w"))
+json.dump({"floppy_a": ["boot.img"]}, open(d + "/slots", "w"))
+ATSET
+	"$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$at" 6000 \
+		--shot 5999="$at/s.ppm" > "$work/at.log" 2>&1 || true
+	lit=0
+	[ -f "$at/s.ppm" ] && lit=$(python3 - "$at/s.ppm" <<'ATLIT'
+import sys
+f = open(sys.argv[1], "rb"); f.readline()
+w, h = map(int, f.readline().split()); f.readline()
+d = f.read()
+print(sum(1 for i in range(0, len(d), 3) if d[i] | d[i + 1] | d[i + 2]))
+ATLIT
+)
+	if [ "${lit:-0}" -gt 20000 ]; then
+		report PASS "an IBM AT POSTs without asking for F1" "$lit lit pixels"
+	else
+		report FAIL "an IBM AT POSTs without asking for F1" \
+			"only ${lit:-0} lit pixels - it is sitting at a POST stop"
+	fi
+else
+	report SKIP "an IBM AT POSTs without asking for F1" "no ibmat ROMs at $roms/ibmat"
+fi
+
 # ------------------------------------------------------- 5. savestates
 if "$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$gw" 600 > /dev/null 2>&1; then
 	report PASS "600-frame run for the state legs"

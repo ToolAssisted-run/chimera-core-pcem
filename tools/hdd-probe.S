@@ -11,6 +11,12 @@
  *                    first hard disk. Prints 'W' when the BIOS says it worked.
  *   MODE=2 (reader)  read LBA 1 back, and ONLY if it holds MAGIC, copy it to
  *                    LBA 2. Prints 'R' on a match, 'X' on a mismatch.
+ *   MODE=3 (marker)  touch no disk at all and fill the screen with '#'. This
+ *                    is the "did the machine get past POST" probe: an AT that
+ *                    stops at "162-System Options Not Set" never boots the
+ *                    floppy, so the screen keeps its three lines of text and
+ *                    a lit-pixel count tells the two apart without reading
+ *                    anything off the screen.
  *
  * So MAGIC at LBA 2 of an exported image can only have got there by a machine
  * READING it from the disk it was seeded with. That is the round trip, and it
@@ -32,7 +38,16 @@ _start:
 	movw	$0x7c00, %sp
 	sti
 
-#if MODE == 1
+#if MODE == 3
+	movw	$0x0e23, %ax		/* '#' */
+	movw	$0x0007, %bx
+mloop:
+	int	$0x10
+	movw	$0x0e23, %ax
+	movw	$0x0007, %bx
+	jmp	mloop
+
+#elif MODE == 1
 	/* fill 0x7e00..0x7fff with MAGIC, over and over */
 	movw	$0x7e00, %di
 	movw	$32, %bp

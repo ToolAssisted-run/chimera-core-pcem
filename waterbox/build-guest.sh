@@ -58,7 +58,13 @@ out += ['wx-thread.c', 'cdrom-ioctl-dummy.c',
 print(' '.join(sorted(set(out))))
 PYEOF
 )
-SOURCES="$SOURCES $ROOT/waterbox/pcem-driver.c $ROOT/waterbox/pcem-input.c $ROOT/waterbox/pcem-hdd.c"
+# PCem's own nvr/default, generated into a C table the guest carries: without
+# it every AT-class machine stops at POST waiting for F1.
+mkdir -p "$OUT"
+python3 "$ROOT/tools/gen-nvr-defaults.py" "$ROOT/extern/pcem/nvr/default" \
+        "$OUT/pcem-nvr-defaults.c" >/dev/null || { echo "nvr defaults failed"; exit 1; }
+
+SOURCES="$SOURCES $ROOT/waterbox/pcem-driver.c $ROOT/waterbox/pcem-input.c $ROOT/waterbox/pcem-hdd.c $OUT/pcem-nvr-defaults.c"
 
 FAIL=0
 OBJS=""

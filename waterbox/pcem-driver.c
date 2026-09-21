@@ -298,6 +298,8 @@ void givealbuffer_cd(int16_t *buf)
  *
  * The .cfg is not a file at all - it is composed in memory from the settings
  * and handed over with fmemopen. */
+extern int pcem_nvr_default(const char *name, const uint8_t **data, int *len);
+
 FILE *pcem_driver_fopen(const char *path, const char *mode)
 {
         char flat[512];
@@ -306,6 +308,27 @@ FILE *pcem_driver_fopen(const char *path, const char *mode)
 
         if (strstr(path, PCEM_CFG_NAME))
                 return fmemopen(g_cfg, (size_t)g_cfgLen, "rb");
+
+        /* The CMOS default. nvrfopen() (nvr.c:33-57) asks for
+         * "<config>.<machine>.nvr" first and falls back to
+         * "<nvr path>/default/<machine>.nvr", and only that fallback has a
+         * "default/" component in it. There is no such folder in the sandbox
+         * and a project cannot supply one - the CMOS is not firmware and not
+         * a user file - so the defaults travel inside the core, generated
+         * from PCem's own nvr/default by tools/gen-nvr-defaults.py.
+         *
+         * Without this every AT-class machine stops at POST with
+         * "161-System Options Not Set-(Run SETUP)" and waits for F1, which
+         * is the first thing anybody trying the core would see. */
+        {
+                const char *d = strstr(path, "default/");
+                if (d && mode[0] == 'r') {
+                        const uint8_t *data;
+                        int len;
+                        if (pcem_nvr_default(d + 8, &data, &len))
+                                return fmemopen((void *)data, (size_t)len, "rb");
+                }
+        }
 
         while (*p == '/') p++;
         for (i = 0; i < sizeof flat - 1 && p[i]; i++)
@@ -623,6 +646,73 @@ static void compose_cfg(void)
         g_cfg[g_cfgLen] = 0;
 }
 
+/* ------------------------------------------------- the CMOS, made to fit
+ *
+ * An AT-class machine keeps its equipment list in CMOS, and a BIOS that finds
+ * one drive when the CMOS says two stops at POST with "162-System Options Not
+ * Set-(Run SETUP)" and waits for F1. A real owner ran SETUP once; a Chimera
+ * user builds the machine out of settings and has nothing to run SETUP on,
+ * and pressing F1 on the first frame of every movie is not a thing anybody
+ * should have to record.
+ *
+ * So the CMOS PCem's own nvr/default seeded is edited to describe the machine
+ * the settings actually built. Only the four standard MC146818 equipment
+ * bytes and the checksum: 0x10 (floppy types), 0x14 (drive count, coprocessor
+ * and display) and 0x2E/0x2F (the sum of 0x10..0x2D). Those offsets are the
+ * AT's own contract and are the same on every AT-class BIOS; everything else
+ * in the CMOS - the disk types, the chipset's own bytes, the setup screens'
+ * preferences - is left exactly as PCem shipped it.
+ *
+ * MEASURED: an IBM AT with the default at.nvr and two 1.2M drives POSTs
+ * clean and boots; the same machine with ONE drive stops at 162. That is the
+ * whole difference this closes.
+ */
+extern uint8_t nvrram[128];
+extern int nvrmask;
+extern int fdd_get_type(int drive);
+
+static void apply_cmos(const char *videoCard)
+{
+        /* PCem drive type -> CMOS drive type. PCem: 0 none, 1 360k, 2 1.2M,
+         * 3 1.2M dual RPM, 4 720k, 5 1.44M, 6 1.44M 3-mode, 7 2.88M.
+         * CMOS: 0 none, 1 360K, 2 1.2M, 3 720K, 4 1.44M, 5 2.88M. */
+        static const uint8_t fdd_cmos[8] = { 0, 1, 2, 2, 3, 4, 4, 5 };
+        int a, b, n, i, sum, video = 0;
+        char fpu[32];
+
+        extern int model;
+        if (!(models[model].flags & MODEL_AT)) return;   /* an XT has no CMOS */
+        if (nvrmask < 63) return;                        /* not an MC146818 */
+
+        a = fdd_get_type(0); b = fdd_get_type(1);
+        if (a < 0 || a > 7) a = 0;
+        if (b < 0 || b > 7) b = 0;
+        nvrram[0x10] = (uint8_t)((fdd_cmos[a] << 4) | fdd_cmos[b]);
+
+        /* bits 5-4 of the equipment byte: 00 EGA/VGA or none, 01 CGA 40x25,
+         * 10 CGA 80x25, 11 monochrome. */
+        if (!strcmp(videoCard, "mda") || !strcmp(videoCard, "hercules")
+            || !strcmp(videoCard, "incolor") || !strcmp(videoCard, "genius")
+            || !strcmp(videoCard, "wy700"))
+                video = 3;
+        else if (!strcmp(videoCard, "cga") || !strcmp(videoCard, "compaq_cga")
+                 || !strcmp(videoCard, "plantronics") || !strcmp(videoCard, "sigma400"))
+                video = 2;
+
+        n = (a ? 1 : 0) + (b ? 1 : 0);
+        drv_setting_str("fpu", "none", fpu, sizeof fpu);
+        nvrram[0x14] = (uint8_t)((nvrram[0x14] & 0x0c)
+                                 | (n ? 0x01 : 0x00)
+                                 | (strcmp(fpu, "none") ? 0x02 : 0x00)
+                                 | ((uint8_t)video << 4)
+                                 | (n ? (uint8_t)((n - 1) << 6) : 0));
+
+        sum = 0;
+        for (i = 0x10; i <= 0x2d; i++) sum += nvrram[i];
+        nvrram[0x2e] = (uint8_t)((sum >> 8) & 0xff);
+        nvrram[0x2f] = (uint8_t)(sum & 0xff);
+}
+
 /* ------------------------------------------------------------ the ABI */
 
 ECL_EXPORT const char *GetLoadError(void) { return g_loadError; }
@@ -695,6 +785,8 @@ ECL_EXPORT int Init(void)
         }
 
         resetpchard();
+        /* after resetpchard, because loadnvr() runs inside it */
+        apply_cmos(setting_bare("videoCard", "vga", buf, sizeof buf));
         sound_init();
         fullspeed();
 
@@ -705,7 +797,6 @@ ECL_EXPORT int Init(void)
         g_frameMs = (uint64_t)(1000.0 * den / num);
         if (!g_frameMs) g_frameMs = 1;
 
-        (void)buf;
         return 1;
 }
 

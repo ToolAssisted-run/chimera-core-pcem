@@ -15,6 +15,7 @@ instruction, until he says otherwise.
 | `docs/M1B.md` | the sandbox JIT spike: does the recompiler work in miniBox, and what it costs |
 | `docs/XP.md` | Windows XP installed and measured to the desktop, and what actually costs |
 | `docs/HDD.md` | writable hard disks: the sparse overlay, the save-data export, derived geometry, and what a state costs |
+| `docs/CMOS.md` | PCem's default NVRAMs shipped inside the core, and the CMOS made to fit the machine the settings built |
 | `extern/pcem` | upstream `TASEmulators/pcem`, pinned (see PLAN.md, "The repository") |
 | `configs/` | PCem `.cfg` files reproducing the TASVideos published configurations |
 | `patches/` | full-file patches against `extern/pcem` |
@@ -45,8 +46,13 @@ instruction, until he says otherwise.
   to the logon screen costs 7 MiB of a 339 MB state, and an install would cost
   about 1.1 GiB - said out loud in `docs/HDD.md` rather than discovered later.
   Geometry is derived from the image (Auto used to write three zeros, which is
-  a drive of no sectors). Gate 25/25. An upstream NULL-`atapi` crash fixed on
+  a drive of no sectors). Gate 26/26. An upstream NULL-`atapi` crash fixed on
   the way.
+- **AT-class machines no longer stop at POST** (2026-09-21). PCem's own
+  `nvr/default` ships inside the core and the CMOS is edited to describe the
+  machine the settings built, so "161-System Options Not Set-(Run SETUP)" and
+  its F1 are gone. `docs/CMOS.md`; an AT with an MFM disk still needs its
+  drive type, and that is written down there.
 - M2 (the machine, native) continues.
 
 ## Building the M1a harness

@@ -2,8 +2,8 @@
 
 **Status: built and gated, 2026-09-21.** PCem's hard disks are writable, the
 writes survive a round trip out of the machine and back in, and a seeded disk
-costs nothing until the guest writes to it. `run-gate.sh` is 25 legs, of which
-eight are this work and four have been broken on purpose and watched go red.
+costs nothing until the guest writes to it. `run-gate.sh` is 26 legs, of which
+nine are this work and four have been broken on purpose and watched go red.
 
 This is PLAN.md 4.2 built, with the measurement PLAN.md could not make.
 
