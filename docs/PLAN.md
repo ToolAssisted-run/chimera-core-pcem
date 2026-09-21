@@ -924,6 +924,54 @@ The trade-offs, stated honestly:
   better than the libTAS arrangement, because the exported image is
   hash-pinned by the project rather than by a wiki page.
 
+### 6.4 What was built (2026-09-21) - and it was Option B
+
+**See `docs/PRESETS.md` for the whole record.** Five presets ship, the gate
+grows three legs, and nineteen settings were added so that every row of the
+tables in 6.1 is a thing a user can see and change. What section 6 above got
+right and wrong:
+
+- **Option C was not built. Option B was**, because the frontend built it
+  (chimera 8125d43): a `presets` declaration whose Apply WRITES the values into
+  the settings and is then finished with. It is the better design for the reason
+  `~/chimera/docs/project.md` gives - nothing records a preset NAME whose
+  meaning a later core build could change under a movie. 6.2's Option B
+  paragraph called it "clean, explicit, and orthogonal to machines"; that was
+  right, and the "cost" it listed has been paid by somebody else.
+- **6.2's advantage 2 does not survive.** A `machines[]` entry carries its own
+  `systemId` and a preset does not, so the DOS/PC platform split does NOT come
+  free; a DOS project's movie header says `PC`.
+- **6.2's advantage 1 does not survive either, and that is the point.** The
+  preset is not a recorded fact; the resolved values are, and they are the
+  truth. The "a preset is not a lock" trade-off in 6.2 therefore evaporates -
+  there is no label left to mislead anyone.
+- **Advantages 3 and 4 survive intact.** The firmware page is two lines - all
+  five presets' requirements are satisfied by Sergio's ROM folder, measured -
+  and "custom" is simply not applying a preset.
+- **6.2's UNCHECKED item is answered.** `ApplySelectedPreset` writes the values
+  into the settings on the click and re-asks the exposed set afterwards, so
+  there are no cached narrowed declarations to go stale. It also SILENTLY skips
+  the machine setting, which is the one thing a PCem preset most wants to set;
+  PRESETS.md section 1 has what was done about that.
+- **The disk geometries in 6.1's table are deliberately NOT pinned by any
+  preset.** `hddGeometry` "Auto" now derives the geometry from the image the
+  user supplies (docs/HDD.md section 3), and a preset that pinned 17/15/900
+  would fight the user's own file. Nor are the fixed floppy drive types: Auto
+  fits the drive to the disk, and a 2.88M drive in bay A is wrong for exactly
+  the 180 KB and 360 KB games the late-'80s package exists to run.
+- **`enable_sync = 1` in 6.1's "common to all six" is the one row that is
+  refused rather than mapped.** A core that reads the host clock is not
+  deterministic - Chimera issue #120 - and the driver has always written
+  `enable_sync = 0`.
+- **The Early '80s package is still not here**, and nothing was invented to
+  stand in for it. 6.1 already records why: "a UserFile, not a package; not
+  read".
+- **A measurement that CMOS.md wanted.** Two of the five presets - the Compaq
+  Deskpro 386 and the Packard Bell PB570 - reach a BIOS screen and stop at a
+  POST prompt, and it is `docs/CMOS.md`'s own "only the IBM AT was tested" gap
+  rather than anything the presets did: rebuilding with `apply_cmos()` disabled
+  gives byte-identical screenshots. One keypress gets both to a running game.
+
 ---
 
 ## 7. The five questions

@@ -115,6 +115,159 @@ VIDEO_SPEEDS = ["default", "8-bit 8MHz", "16-bit 8MHz", "16-bit 12MHz",
                 "16-bit 16MHz", "Fast VLB/PCI"]
 
 
+def device_configs(src):
+    """Every device_config_t table PCem has, collapsed to key -> the labels
+    that key offers anywhere.
+
+    PCem's per-device settings do not live in the .cfg's global section: they
+    live in a [device name] section and are read back through
+    device_get_config_int, which matches the key against THAT device's own
+    table (device.c:120-133). So a Chimera setting for one of them is a
+    setting whose value is a LABEL - "0x220", "NukedOPL", "4 MB" - which the
+    driver resolves against whichever device is actually fitted and writes as
+    that device's own number. The label is the only thing every card that has
+    the key agrees on; the number behind it is not (a video card's "memory" is
+    in MB on an S3 and in kB on an AVGA2), and neither is the set of legal
+    values (an SB Pro v2 takes two addresses and an SB16 four).
+
+    Collecting the union here means the declared option list comes from PCem's
+    own tables rather than a list somebody typed, exactly as the machine and
+    card lists do."""
+    import glob as _glob, os as _os
+    keys = {}
+    for path in sorted(_glob.glob(str(src / "*.c"))):
+        # Only the files the guest is actually BUILT from (the same drop list
+        # as waterbox/build-guest.sh). Without this, ne2000's five base
+        # addresses join the address list and the settings page offers five
+        # choices for a card that is not in the binary - an option a user can
+        # pick and the core cannot honour, which is the exact shape of thing
+        # gates.md calls a check that cannot fail.
+        base = _os.path.basename(path)
+        if base.startswith("wx-") and base != "wx-thread.c":
+            continue
+        if base in ("soundopenal.c", "midi_alsa.c", "ne2000.c", "nethandler.c",
+                    "cdrom-ioctl.c", "cdrom-ioctl-linux.c", "cdrom-ioctl-osx.c",
+                    "hdd_file.c"):
+            continue
+        text = Path(path).read_text(errors="replace")
+        for m in re.finditer(r'device_config_t\s+(\w+)\[\]\s*=\s*\{', text):
+            i, depth = m.end() - 1, 0
+            j = i
+            while True:
+                if text[j] == "{":
+                    depth += 1
+                elif text[j] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                j += 1
+            body = text[i:j]
+            # Each entry starts at its .name; everything up to the next .name
+            # is that entry's own fields, including its selection[] labels.
+            for e in re.finditer(r'\.name\s*=\s*"([^"]+)"(.*?)(?=\.name\s*=\s*"|\Z)',
+                                 body, re.S):
+                key, rest = e.group(1), e.group(2)
+                ty = re.search(r'\.type\s*=\s*(\w+)', rest)
+                d = keys.setdefault(key, {"types": [], "labels": [], "sources": {}})
+                if ty and ty.group(1) not in d["types"]:
+                    d["types"].append(ty.group(1))
+                # The FIRST .description is the entry's own label; the rest
+                # are its selection[] entries. An empty one is the terminator.
+                descs = re.findall(r'\.description\s*=\s*"([^"]*)"', rest)
+                mine = d["sources"].setdefault(base, [])
+                for label in descs[1:]:
+                    if not label:
+                        continue
+                    if not any(label.lower() == x.lower() for x in d["labels"]):
+                        d["labels"].append(label)
+                    if not any(label.lower() == x.lower() for x in mine):
+                        mine.append(label)
+    for d in keys.values():
+        d["labels"] = order_labels(d["labels"])
+        d["sources"] = {f: order_labels(v) for f, v in d["sources"].items()}
+    return keys
+
+
+def order_labels(labels):
+    return [x for _, x in sorted(enumerate(labels),
+                                 key=lambda p: label_order(p[1], p[0]))]
+
+
+# Which PCem source files a Chimera setting's option list may draw on. A
+# setting says "the sound card's address", so the addresses it offers are the
+# ones SOUND cards have - the AHA-1542C also has a key called "addr" and it is
+# a BIOS window, not a sound port, and offering its six values under a sound
+# setting would be four kinds of wrong at once.
+DEVICE_GROUPS = {
+    "sound":  lambda f: f.startswith("sound_"),
+    "video":  lambda f: f.startswith("vid_"),
+    # The add-in Voodoo Graphics / Voodoo 2 card, which is a device of its own
+    # alongside the 2D card (vid_voodoo.c's voodoo_device).
+    "voodoo": lambda f: f == "vid_voodoo.c",
+}
+
+
+def device_config_groups(keys):
+    """key -> option list, per group, ready to be an enum's options.
+
+    A CONFIG_BINARY key has no selection[] at all, so its two states are named
+    here once - "Off"/"On" - rather than in each setting."""
+    out = {}
+    for group, want in DEVICE_GROUPS.items():
+        g = {}
+        for key, d in keys.items():
+            labels, here = [], False
+            for f, ls in d["sources"].items():
+                if not want(f):
+                    continue
+                here = True
+                for x in ls:
+                    if not any(x.lower() == y.lower() for y in labels):
+                        labels.append(x)
+            if not here:
+                continue
+            if not labels and "CONFIG_SELECTION" in d["types"]:
+                # A selection with no labels is a PARSE failure wearing the
+                # costume of a binary switch, and it would ship as a two-option
+                # setting for a key with eight real values. Loud, not silent.
+                raise SystemExit(f"device_configs: {key!r} in group {group!r} "
+                                 f"is CONFIG_SELECTION somewhere but parsed no "
+                                 f"labels here - the parser is wrong")
+            g[key] = order_labels(labels) if labels else ["Off", "On"]
+        out[group] = g
+    return out
+
+
+_UNITS = {"b": 1, "kb": 1024, "mb": 1024 * 1024, "gb": 1024 * 1024 * 1024}
+
+
+def label_order(label, seq):
+    """Sort a device-config label the way a person reads it: "None" first, then
+    anything that is a number - a size, an address, an IRQ or DMA line - in
+    numeric order, then everything else in PCem's own declaration order.
+
+    The two halves matter for different reasons. Without the numeric half, "16
+    MB" sorts before "2 MB" and a memory list reads as noise. Without keeping
+    declaration order for the rest, the Voodoo type list comes out Obsidian,
+    Voodoo 2, Voodoo Graphics - alphabetical, and in no sense the order anybody
+    would look for those three cards in."""
+    text = label.strip()
+    if text.lower() in ("none", "disabled"):
+        return (-1, 0)
+    m = re.fullmatch(r'(\d+)\s*([kKmMgG]?[bB])', text)
+    if m:
+        return (0, int(m.group(1)) * _UNITS[m.group(2).lower()])
+    m = re.fullmatch(r'0x([0-9a-fA-F]+)', text)
+    if m:
+        return (0, int(m.group(1), 16))
+    m = re.fullmatch(r'(?:IRQ|DMA|ID)\s*(\d+)', text)
+    if m:
+        return (0, int(m.group(1)))
+    if re.fullmatch(r'\d+', text):
+        return (0, int(text))
+    return (1, seq)
+
+
 def ram_bounds(machine):
     """PCem states min_ram/max_ram in MB for an AT-class machine with a
     granularity under 128, and in KB otherwise (pc.c:748-749,
@@ -129,6 +282,7 @@ def main():
     src = Path(sys.argv[1])
     out_path = Path(sys.argv[2])
 
+    dcs = device_configs(src)
     ms = machines(src)
     vids = table(read(src, "video.c"), "VIDEO_CARD video_cards[]")
     snds = table(read(src, "sound.c"), "SOUND_CARD sound_cards[]")
@@ -169,11 +323,14 @@ def main():
         "fdd_types": FDD_TYPES,
         "video_speeds": VIDEO_SPEEDS,
         "all_cpus": all_cpus,
+        "device_configs": dcs,
+        "device_config_groups": device_config_groups(dcs),
     }
     out_path.write_text(json.dumps(data, indent=1))
     print(f"machines={len(ms)} video={len(vids)} sound={len(snds)} "
           f"hdd={len(hdds)} cpu_tables={len(cpus)} cpus={len(all_cpus)} "
-          f"mice={len(mice)} joysticks={len(joys)} -> {out_path}")
+          f"mice={len(mice)} joysticks={len(joys)} "
+          f"device_keys={len(data['device_configs'])} -> {out_path}")
 
 
 if __name__ == "__main__":

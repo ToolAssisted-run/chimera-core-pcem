@@ -84,6 +84,36 @@ else
 	report FAIL "the declaration is legal" "$(grep -m1 BAD "$work/decl.log")"
 fi
 
+# ------------------------------------------------- 1c. the presets are legal
+# A preset is a bundle of setting values the wizard writes INTO the settings
+# and is then finished with, and a key the core misdeclared is IGNORED and only
+# named on a status line nobody reads. So it is checked here instead.
+if python3 "$root/tools/check-presets.py" "$here/waterbox.config" \
+   > "$work/presets.log" 2>&1; then
+	report PASS "the presets are legal" "$(tail -1 "$work/presets.log")"
+else
+	report FAIL "the presets are legal" "$(grep -m1 BAD "$work/presets.log")"
+fi
+
+# NEGATIVE CONTROL, run every time rather than described: a preset that names a
+# setting this core does not have, and one that puts a string where the core
+# declared an int. Both are silent in the frontend, which is the whole reason
+# the check exists, so a check that cannot see them is worth nothing.
+python3 - "$here/waterbox.config" "$work/presets-broken.config" <<'PRESETBREAK'
+import json, sys
+cfg = json.loads(open(sys.argv[1]).read())
+cfg["presets"][0]["values"]["thereIsNoSuchSetting"] = 1
+cfg["presets"][1]["values"]["memSizeKB"] = "eight megabytes"
+open(sys.argv[2], "w").write(json.dumps(cfg))
+PRESETBREAK
+if python3 "$root/tools/check-presets.py" "$work/presets-broken.config" \
+   > "$work/presets-neg.log" 2>&1; then
+	report FAIL "a misdeclared preset is caught" "it passed - the leg is blind"
+else
+	report PASS "a misdeclared preset is caught" \
+		"negative control, $(grep -c BAD "$work/presets-neg.log") caught"
+fi
+
 # ------------------------------------------------------- 2. it runs at all
 settings='{"system":"x86 PC","machine":"ga686bx - [Slot 1] Gigabyte GA-686BX",
  "cpu":"Pentium II/450","fpu":"builtin","dynarec":true,"memSizeKB":262144,
@@ -251,6 +281,34 @@ if [ "${forced:-}" = "1" ]; then
 	report PASS "a named drive overrides Auto" "negative control"
 else
 	report FAIL "a named drive overrides Auto" "got type ${forced:-none}, wanted 1"
+fi
+
+# ------------------ 4c-bis. every preset reaches the machine, and boots
+# The leg 1c above reads the DECLARATION. This one resolves each preset the way
+# the wizard does and runs it, and asks two different questions:
+#
+#   * did the values REACH the machine? A per-device value the driver drops
+#     leaves PCem's own default in place, so the machine boots, the picture
+#     looks right and every digest matches - because the default is what this
+#     core did before these settings existed. A boot leg alone therefore cannot
+#     fail for the thing most likely to break (gates.md B), so what is read is
+#     GetComposedConfig: the .cfg PCem was actually handed.
+#   * does it reach a BIOS SCREEN? Liveness is not a stable digest - a machine
+#     stuck at frame 1 is perfectly deterministic - so the picture has to have
+#     CHANGED across the run as well as be drawn at the end.
+#
+# Proven to bite: with compose_device_sections() commented out, this reported
+# 18 problems across all five presets, naming every device key that had gone
+# missing. 9000 frames is not arbitrary either - at 2000 the Compaq Deskpro 386
+# is still counting memory and has 361 lit pixels.
+if python3 "$root/tools/check-preset-boots.py" "$here/waterbox.config" \
+   "$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$roms" \
+   "$work/presets" 9000 > "$work/preset-boots.log" 2>&1; then
+	report PASS "every preset reaches the machine and boots" \
+		"$(tail -1 "$work/preset-boots.log")"
+else
+	report FAIL "every preset reaches the machine and boots" \
+		"$(grep -m1 BAD "$work/preset-boots.log")"
 fi
 
 # ------------------------------------------- 4d. a real game, on a real 1981 PC

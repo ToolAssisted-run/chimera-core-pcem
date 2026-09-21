@@ -104,7 +104,17 @@ extern int video_get_video_from_internal_name(char *name);
 extern char *mouse_get_name(int mouse);
 extern char *joystick_get_name(int joystick);
 #include "cpu.h"
+#include "device.h"
 #include "model.h"
+
+/* PCem's per-device settings: each card's own options live in a [device name]
+ * section of the .cfg, so the driver has to reach the DEVICE the settings
+ * chose. All three of these read static tables and are safe before initpc. */
+extern device_t *sound_card_getdevice(int card);
+extern int sound_card_get_from_internal_name(char *s);
+extern device_t *video_card_getdevice(int card, int romset);
+extern int video_old_to_new(int card);
+extern device_t voodoo_device;
 
 /* ------------------------------------------------------------- our state */
 
@@ -479,6 +489,167 @@ static int auto_fdd_type(const char *slot_file_name, int dflt)
         return dflt;
 }
 
+/* ------------------------------------------- PCem's PER-DEVICE settings
+ *
+ * A card's own options - a Sound Blaster's port, the OPL implementation, how
+ * much memory a graphics card has, how many slices a Voodoo splits a triangle
+ * into - are not global .cfg keys. Each lives in a [device name] section and
+ * is read back through device_get_config_int, which looks the key up in THAT
+ * device's own table and returns the matching number (device.c:120-133).
+ *
+ * Two things follow, and together they decide the shape of this code.
+ *
+ * The NUMBER is the device's, not the setting's. A video card's "memory" is in
+ * MB on an S3 Trio64 and in kB on an AVGA2; "0x220" is 0x220 on a Sound
+ * Blaster and is not in the AHA-1542C's list for the same key name at all. So
+ * the Chimera setting carries the LABEL PCem shows a user - "0x220",
+ * "NukedOPL", "4 MB" - and it is resolved HERE against the table of the card
+ * that is actually fitted. One setting then serves 20 sound cards and 48 video
+ * cards with no per-card table in the driver to drift out of date.
+ *
+ * And a label the fitted card does not offer writes NOTHING. An SB Pro v2
+ * takes two addresses where an SB16 takes four; writing 0x260 into a Pro v2
+ * would give it a port no such card ever had, and PCem does not range-check it
+ * (device_get_config_int returns the file's value unvalidated). "Card default"
+ * is the same path: no key written, so PCem's own default stands, which is
+ * exactly what this core did before these settings existed.
+ */
+
+/* The chosen sound card's device, or NULL for None and for a card PCem has no
+ * device for. */
+static device_t *chosen_sound_device(void)
+{
+        char name[128];
+        int idx;
+        setting_bare("soundCard", "none", name, sizeof name);
+        idx = sound_card_get_from_internal_name(name);
+        if (idx < 0) return NULL;
+        return sound_card_getdevice(idx);
+}
+
+/* The chosen video card's device. "builtin" is GFX_BUILTIN, and which device
+ * that IS depends on the machine, so the romset has to be resolved first -
+ * which it can be, because models[] is static data and compose_cfg runs before
+ * initpc. */
+static device_t *chosen_video_device(void)
+{
+        char name[128];
+        int legacy, model_idx, romset_id;
+        setting_bare("machine", "ibmat", name, sizeof name);
+        model_idx = model_get_model_from_internal_name(name);
+        if (model_idx < 0) return NULL;
+        romset_id = models[model_idx].id;
+        setting_bare("videoCard", "vga", name, sizeof name);
+        legacy = video_get_video_from_internal_name(name);
+        return video_card_getdevice(video_old_to_new(legacy), romset_id);
+}
+
+/* One key of one device, resolved from a Chimera setting that holds a label.
+ * Writes nothing - and so leaves PCem's own default in place - for "Card
+ * default", for a device that has no such key, and for a label the device does
+ * not offer. */
+static void cfg_device_key(device_t *dev, int *header_written,
+                           const char *key, const char *setting)
+{
+        char label[128];
+        device_config_t *c;
+
+        if (!dev || !dev->config) return;
+        if (wbx_setting_str(setting, label, sizeof label) < 0) return;
+        json_unescape(label);
+        if (!label[0] || !strcmp(label, "Card default")) return;
+
+        for (c = dev->config; c->type != -1; c++) {
+                int i, value;
+
+                if (strcmp(c->name, key)) continue;
+
+                if (c->type == CONFIG_BINARY) {
+                        if (!strcmp(label, "Off"))     value = 0;
+                        else if (!strcmp(label, "On")) value = 1;
+                        else return;
+                } else if (c->type == CONFIG_SELECTION) {
+                        for (i = 0; i < 16 && c->selection[i].description[0]; i++) {
+                                if (!strcmp(c->selection[i].description, label))
+                                        break;
+                        }
+                        if (i >= 16 || !c->selection[i].description[0]) {
+                                /* Not a value this card has. Said out loud
+                                 * rather than dropped: gates.md C - absent
+                                 * must not look the same as failed. */
+                                fprintf(stderr, "pcem: %s=\"%s\" is not one of the "
+                                        "%s's choices for %s; leaving it at the "
+                                        "card's default\n",
+                                        setting, label, dev->name, key);
+                                return;
+                        }
+                        value = c->selection[i].value;
+                } else {
+                        return;         /* a string or MIDI key; not offered */
+                }
+
+                if (!*header_written) {
+                        cfg_add("\n[%s]\n", dev->name);
+                        *header_written = 1;
+                }
+                cfg_add("%s = %d\n", key, value);
+                return;
+        }
+}
+
+/* Every [device] section, appended AFTER every global key - config_load
+ * assigns an entry to the section above it, so a global key written after a
+ * section header would land in that section and be invisible to
+ * config_get_*(CFG_MACHINE, NULL, ...). */
+static void compose_device_sections(void)
+{
+        static const struct { const char *key, *setting; } snd[] = {
+                {"addr",        "soundCardAddress"},
+                {"irq",         "soundCardIrq"},
+                {"dma",         "soundCardDma"},
+                {"opl_emu",     "oplEmulator"},
+                {"emu_addr",    "awe32EmuAddress"},
+                {"onboard_ram", "awe32OnboardRam"},
+        };
+        static const struct { const char *key, *setting; } vid[] = {
+                {"memory",         "videoMemory"},
+                {"bilinear",       "videoBilinear"},
+                {"dacfilter",      "videoScreenFilter"},
+                {"render_threads", "videoRenderThreads"},
+                {"recompiler",     "videoRecompiler"},
+        };
+        /* The add-in Voodoo Graphics / Voodoo 2, which is a device of its own
+         * beside the 2D card. Only written when the card is actually fitted:
+         * a section for a device that is not in the machine is dead text. */
+        static const struct { const char *key, *setting; } vdo[] = {
+                {"type",                "voodooType"},
+                {"framebuffer_memory",  "voodooFramebufferMemory"},
+                {"texture_memory",      "voodooTextureMemory"},
+                {"bilinear",            "voodooBilinear"},
+                {"dacfilter",           "voodooScreenFilter"},
+                {"render_threads",      "voodooRenderThreads"},
+                {"sli",                 "voodooSli"},
+                {"recompiler",          "voodooRecompiler"},
+        };
+        size_t i;
+        int hdr;
+        device_t *d;
+
+        d = chosen_sound_device();
+        for (i = 0, hdr = 0; i < sizeof snd / sizeof snd[0]; i++)
+                cfg_device_key(d, &hdr, snd[i].key, snd[i].setting);
+
+        d = chosen_video_device();
+        for (i = 0, hdr = 0; i < sizeof vid / sizeof vid[0]; i++)
+                cfg_device_key(d, &hdr, vid[i].key, vid[i].setting);
+
+        if (wbx_setting_bool("voodoo", 0)) {
+                for (i = 0, hdr = 0; i < sizeof vdo / sizeof vdo[0]; i++)
+                        cfg_device_key(&voodoo_device, &hdr,
+                                       vdo[i].key, vdo[i].setting);
+        }
+}
+
 static void compose_cfg(void)
 {
         char buf[256];
@@ -642,6 +813,11 @@ static void compose_cfg(void)
          * have that, so it is always off and the date is a declared setting
          * the driver writes into the CMOS itself. */
         cfg_add("enable_sync = 0\n");
+
+        /* LAST, and it has to be last: every key above belongs to the global
+         * section, and config_load puts an entry in whichever section header
+         * precedes it. */
+        compose_device_sections();
 
         g_cfg[g_cfgLen] = 0;
 }

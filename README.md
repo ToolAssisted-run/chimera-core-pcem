@@ -16,6 +16,7 @@ instruction, until he says otherwise.
 | `docs/XP.md` | Windows XP installed and measured to the desktop, and what actually costs |
 | `docs/HDD.md` | writable hard disks: the sparse overlay, the save-data export, derived geometry, and what a state costs |
 | `docs/CMOS.md` | PCem's default NVRAMs shipped inside the core, and the CMOS made to fit the machine the settings built |
+| `docs/PRESETS.md` | the five TASVideos machines as declared presets: every table row mapped, the four rows deliberately refused, and where each one boots to |
 | `extern/pcem` | upstream `TASEmulators/pcem`, pinned (see PLAN.md, "The repository") |
 | `configs/` | PCem `.cfg` files reproducing the TASVideos published configurations |
 | `patches/` | full-file patches against `extern/pcem` |
@@ -53,6 +54,16 @@ instruction, until he says otherwise.
   machine the settings built, so "161-System Options Not Set-(Run SETUP)" and
   its F1 are gone. `docs/CMOS.md`; an AT with an MFM disk still needs its
   drive type, and that is written down there.
+- **The TASVideos configurations ship as presets** (2026-09-21). Five of them,
+  chronological, in the wizard's selector; Apply writes their values into the
+  settings and every one stays editable. Nineteen new settings were added so
+  that every row of the published tables is a thing a user can change - the
+  sound card's address, IRQ, DMA and OPL implementation, the video card's
+  memory, the Voodoo's render threads and the rest. All five find their
+  firmware in Sergio's ROM folder, and all five reach a BIOS screen; two of
+  them stop there for one keypress, for a CMOS reason that is the machine's and
+  not the preset's. Time sync to the host clock is refused, and no preset pins
+  a disk geometry. Gate 29/29. `docs/PRESETS.md`.
 - M2 (the machine, native) continues.
 
 ## Building the M1a harness
