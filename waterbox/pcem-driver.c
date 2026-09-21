@@ -31,6 +31,7 @@
 #include "plat-joystick.h"
 
 #include "pcem-driver.h"
+#include "pcem-hdd.h"
 
 /* The guest kit gives wbx_setting_long/bool/str; these are the two shapes
  * this driver wants. */
@@ -140,6 +141,12 @@ static uint32_t *g_frame;
 static int16_t g_audio[AUDIO_CAP * 2];
 static int     g_audioSamples;
 
+/* The save-data export window (see the savedata group below): ECL_INVISIBLE,
+ * because it is a transient view the host reads at a frame boundary and not
+ * one byte of machine state. */
+#define SAVEDATA_WINDOW (256 * 1024)
+static uint8_t *g_saveWindow;
+
 /* The guest clock is frozen, and PCem reads the host clock only for the
  * status bar's blitter statistics (PLAN.md section 2, point 5). A counter is
  * faithful there and, unlike a real clock, cannot desync the machine. */
@@ -205,6 +212,15 @@ void warning(const char *f, ...)
         fputc('\n', stderr);
 }
 
+/* The last rectangle PCem blitted. These are ordinary guest globals, so they
+ * are machine state and a savestate carries them; the FRAME BUFFER they were
+ * copied into is ECL_INVISIBLE and is not. That is the right way round - a
+ * frame buffer is derivable - but it means the picture has to be rebuilt after
+ * a state load, which is what StateLoaded does. Without it a loaded state
+ * shows whatever the machine happened to be drawing before, possibly for
+ * minutes, because a PC paints its screen once and then leaves it alone. */
+static int g_lastX, g_lastY, g_lastY1, g_lastY2, g_lastW, g_lastH;
+
 /* PCem's video blit: copy the machine's rectangle into the frame buffer. */
 static void driver_blit(int x, int y, int y1, int y2, int w, int h)
 {
@@ -229,7 +245,20 @@ static void driver_blit(int x, int y, int y1, int y2, int w, int h)
                         memcpy(g_frame + (size_t)yy * (size_t)w,
                                &(((uint32_t *)buffer32->line[y + yy])[x]),
                                (size_t)w * 4);
+        g_lastX = x; g_lastY = y; g_lastY1 = y1; g_lastY2 = y2;
+        g_lastW = w; g_lastH = h;
         g_blits++;
+}
+
+/* The machine's screen bitmap (buffer32) IS state - PCem mallocs it - so the
+ * picture is rebuilt from it by replaying the last blit. */
+ECL_EXPORT void StateLoaded(void)
+{
+        if (g_lastW > 0 && g_lastH > 0) {
+                long blits = g_blits;
+                driver_blit(g_lastX, g_lastY, g_lastY1, g_lastY2, g_lastW, g_lastH);
+                g_blits = blits;     /* a redraw is not a frame the machine drew */
+        }
 }
 
 void givealbuffer(int32_t *buf)
@@ -463,23 +492,45 @@ static void compose_cfg(void)
 
         cfg_add("hdd_controller = %s\n", setting_bare("hddController", "none", buf, sizeof buf));
 
-        /* Drive C: and D:. Geometry 0 means "derive from the image", which
-         * PCem's own new-disk dialog does by file size. */
+        /* Drive C: and D:.
+         *
+         * The geometry has to be a REAL number here, not a zero meaning "work
+         * it out": nothing in PCem's emulation core derives geometry. hdd_load
+         * passes hdc[d].spt/hpc/tracks straight through and ide.c reports them
+         * as the drive's identity (ide.c:169-190), so a zero is a drive of no
+         * sectors that the guest cannot see at all. Upstream derives it in its
+         * wxWidgets new-disk dialog, which is platform layer this port
+         * replaces - so Auto is pcem_hdd_derive_geometry(), which reads the
+         * image's own partition table and falls back to its length. */
         if ((fn = slot_file(PCEM_SLOT_HDD, slot, sizeof slot))) {
-                cfg_add("hdc_fn = %s\n", fn);
-                /* Auto leaves the three at 0, which is PCem's own "work it
-                 * out from the file's length" path. */
+                int s = 0, h = 0, t = 0;
                 int custom = !strcmp(drv_setting_str("hddGeometry", "Auto", buf, sizeof buf), "Custom");
-                cfg_add("hdc_sectors = %d\n", custom ? drv_setting_int("hddSectors", 0) : 0);
-                cfg_add("hdc_heads = %d\n", custom ? drv_setting_int("hddHeads", 0) : 0);
-                cfg_add("hdc_cylinders = %d\n", custom ? drv_setting_int("hddCylinders", 0) : 0);
+                if (custom) {
+                        s = drv_setting_int("hddSectors", 0);
+                        h = drv_setting_int("hddHeads", 0);
+                        t = drv_setting_int("hddCylinders", 0);
+                }
+                if (!custom || s <= 0 || h <= 0 || t <= 0)
+                        pcem_hdd_derive_geometry(fn, &s, &h, &t);
+                cfg_add("hdc_fn = %s\n", fn);
+                cfg_add("hdc_sectors = %d\n", s);
+                cfg_add("hdc_heads = %d\n", h);
+                cfg_add("hdc_cylinders = %d\n", t);
         }
         if ((fn = slot_file(PCEM_SLOT_HDD2, slot, sizeof slot))) {
-                cfg_add("hdd_fn = %s\n", fn);
+                int s = 0, h = 0, t = 0;
                 int custom2 = !strcmp(drv_setting_str("hdd2Geometry", "Auto", buf, sizeof buf), "Custom");
-                cfg_add("hdd_sectors = %d\n", custom2 ? drv_setting_int("hdd2Sectors", 0) : 0);
-                cfg_add("hdd_heads = %d\n", custom2 ? drv_setting_int("hdd2Heads", 0) : 0);
-                cfg_add("hdd_cylinders = %d\n", custom2 ? drv_setting_int("hdd2Cylinders", 0) : 0);
+                if (custom2) {
+                        s = drv_setting_int("hdd2Sectors", 0);
+                        h = drv_setting_int("hdd2Heads", 0);
+                        t = drv_setting_int("hdd2Cylinders", 0);
+                }
+                if (!custom2 || s <= 0 || h <= 0 || t <= 0)
+                        pcem_hdd_derive_geometry(fn, &s, &h, &t);
+                cfg_add("hdd_fn = %s\n", fn);
+                cfg_add("hdd_sectors = %d\n", s);
+                cfg_add("hdd_heads = %d\n", h);
+                cfg_add("hdd_cylinders = %d\n", t);
         }
 
         if ((fn = slot_file(PCEM_SLOT_FLOPPY_A, slot, sizeof slot))) cfg_add("disc_a = %s\n", fn);
@@ -524,10 +575,28 @@ static void compose_cfg(void)
                         cfg_add("cd_speed = %d\n", drv_setting_int("cdSpeed", 24));
                         cfg_add("cd_model = %s\n", drv_setting_str("cdModel", "pcemcd", buf, sizeof buf));
                 } else {
-                        /* The channel goes with the drive: a channel set with
-                         * no drive behind it segfaults PCem in callbackide
-                         * (docs/XP.md section 6). */
-                        cfg_add("cdrom_drive = 0\n");
+                        /* -1, not 0, and the difference is a crash.
+                         *
+                         * PCem's own no-drive value on unix is -1, and it is
+                         * the ONLY value that reaches cdrom_null_open()
+                         * (pc.c:319-321), which is what installs the null
+                         * ATAPI into the global `atapi`. With 0 the else
+                         * branch calls ioctl_set_drive(), which in this build
+                         * is the dummy that does nothing, and `atapi` stays
+                         * NULL - so the first IDE software reset that finds an
+                         * empty drive calls atapi->stop() through it and the
+                         * machine dies in callbackide (ide.c:824-829). Any
+                         * machine with a hard disk hits that, because the
+                         * other three IDE drives are IDE_NONE.
+                         *
+                         * This is the same crash docs/XP.md section 6 recorded
+                         * from the other direction; clearing the channel was
+                         * half of it, and this is the other half.
+                         *
+                         * The channel goes with the drive regardless: a channel
+                         * set with no drive behind it attaches an ATAPI device
+                         * to nothing. */
+                        cfg_add("cdrom_drive = -1\n");
                         cfg_add("cdrom_channel = -1\n");
                 }
         }
@@ -558,6 +627,12 @@ static void compose_cfg(void)
 
 ECL_EXPORT const char *GetLoadError(void) { return g_loadError; }
 
+/* The .cfg the settings composed, as PCem was handed it. A harness that can
+ * read this can check that a setting REACHED the machine instead of taking
+ * the settings page's word for it - which is how the hard disk's derived
+ * geometry is checked in the gate. */
+ECL_EXPORT const char *GetComposedConfig(void) { return g_cfg; }
+
 ECL_EXPORT int Init(void)
 {
         char *argv[3];
@@ -570,6 +645,12 @@ ECL_EXPORT int Init(void)
         g_frame = (uint32_t *)alloc_invisible((size_t)PCEM_VIDEO_MAX_W * PCEM_VIDEO_MAX_H * 4);
         if (!g_frame) {
                 snprintf(g_loadError, sizeof g_loadError, "no room for the frame buffer");
+                return 0;
+        }
+
+        g_saveWindow = (uint8_t *)alloc_invisible(SAVEDATA_WINDOW);
+        if (!g_saveWindow) {
+                snprintf(g_loadError, sizeof g_loadError, "no room for the save-data window");
                 return 0;
         }
 
@@ -710,6 +791,55 @@ ECL_EXPORT int64_t GetMemoryDomainSize(int i)
 }
 
 ECL_EXPORT int GetMemoryDomainWritable(int i) { return i == 0 || i == 1; }
+
+/* -------------------------------------------- save data (docs/save-data.md)
+ *
+ * What a PC keeps is its hard disks, so that is what leaves: one file per
+ * disk, the whole thing byte for byte, under the name of the project file it
+ * was seeded from. Hand it back into the same slot and the machine carries on
+ * from where it was.
+ *
+ * It goes out through the WINDOW, not the pointer. There is no address at
+ * which a 4 GiB disk exists - it is a read-only seed the box streams from
+ * disc plus a scatter of 4 KiB blocks in guest memory (pcem-hdd.c) - so
+ * GetSaveDataFileBuffer answers null, which is what tells the engine to use
+ * ReadSaveDataFile/GetSaveDataScratch instead (session.cpp:2193). The window
+ * is ECL_INVISIBLE: it is a transient view the host reads at a frame
+ * boundary, not machine state, and a savestate must not carry it.
+ */
+ECL_EXPORT int32_t GetSaveDataFileCount(void) { return (int32_t)pcem_hdd_count(); }
+
+ECL_EXPORT const char *GetSaveDataFileName(int32_t index)
+{
+        return pcem_hdd_export_name((int)index);
+}
+
+ECL_EXPORT int64_t GetSaveDataFileSize(int32_t index)
+{
+        return pcem_hdd_export_size((int)index);
+}
+
+ECL_EXPORT const uint8_t *GetSaveDataFileBuffer(int32_t index)
+{
+        (void)index;
+        return NULL;              /* use the window */
+}
+
+ECL_EXPORT const uint8_t *GetSaveDataScratch(void) { return g_saveWindow; }
+
+ECL_EXPORT int64_t ReadSaveDataFile(int32_t index, int64_t offset, int64_t len)
+{
+        if (!g_saveWindow || len <= 0) return 0;
+        if (len > SAVEDATA_WINDOW) len = SAVEDATA_WINDOW;
+        return pcem_hdd_export_read((int)index, offset, g_saveWindow, len);
+}
+
+/* For the gate and the state measurement: how much of the disk the machine is
+ * actually holding, and how many block-writes cost nothing because they
+ * matched the seed. */
+ECL_EXPORT int64_t GetHddBlocksHeld(int32_t index) { return pcem_hdd_blocks_held((int)index); }
+ECL_EXPORT int64_t GetHddSeedMatches(int32_t index) { return pcem_hdd_writes_matching_seed((int)index); }
+ECL_EXPORT int32_t GetHddBlockBytes(void) { return pcem_hdd_block_bytes(); }
 
 /* A per-frame digest of the visible picture. M1b's end-of-run digest did not
  * notice the emulated CPU being halved (docs/M1B.md section 6b), so the gate

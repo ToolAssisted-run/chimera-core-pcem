@@ -38,8 +38,12 @@ for line in txt.splitlines():
 # The wx GUI, OpenAL, ALSA MIDI, networking and host CD-ROM are the platform
 # layer a Chimera driver replaces. wx-thread.c is pure pthread and is kept.
 drop_prefix = ('wx-', 'slirp/')
+# hdd_file.c writes straight onto the user's file with stdio. A project's
+# files are read-only mounts, so it is replaced by waterbox/pcem-hdd.c: the
+# same six hdd_* functions over a sparse write overlay.
 drop_exact = {'soundopenal.c', 'midi_alsa.c', 'ne2000.c', 'nethandler.c',
-              'cdrom-ioctl.c', 'cdrom-ioctl-linux.c', 'cdrom-ioctl-osx.c'}
+              'cdrom-ioctl.c', 'cdrom-ioctl-linux.c', 'cdrom-ioctl-osx.c',
+              'hdd_file.c'}
 out = []
 for s in srcs:
     if s in drop_exact or s.startswith(drop_prefix):
@@ -54,12 +58,14 @@ out += ['wx-thread.c', 'cdrom-ioctl-dummy.c',
 print(' '.join(sorted(set(out))))
 PYEOF
 )
-SOURCES="$SOURCES $ROOT/waterbox/pcem-driver.c $ROOT/waterbox/pcem-input.c"
+SOURCES="$SOURCES $ROOT/waterbox/pcem-driver.c $ROOT/waterbox/pcem-input.c $ROOT/waterbox/pcem-hdd.c"
 
 FAIL=0
+OBJS=""
 for s in $SOURCES; do
   tag=$(printf '%s' "$s" | md5sum | cut -c1-6)
   o="$OBJ/$(basename "$s" | sed 's/\.[^.]*$//')__$tag.o"
+  OBJS="$OBJS $o"
   if [ ! -f "$o" ] || [ "$s" -nt "$o" ]; then
     extra=""
     case "$s" in rom.c|nvr.c|config.c) extra="-Dfopen=pcem_driver_fopen" ;; esac
@@ -78,7 +84,7 @@ done
 # archive members, leaving them at address 0 that a reloc from the fixed base
 # cannot reach.
 MBB=$MB/build/meson-cpp
-g++ $GUESTCXXFLAGS -o "$OUT/pcem.wbx" "$OBJ"/*.o \
+g++ $GUESTCXXFLAGS -o "$OUT/pcem.wbx" $OBJS \
    -static -no-pie -Wl,--eh-frame-hdr,-O2,--no-relax \
    -T "$MB/source/guest/linkscript.T" \
    -Wl,-u,pthread_once -Wl,-u,pthread_cond_wait \

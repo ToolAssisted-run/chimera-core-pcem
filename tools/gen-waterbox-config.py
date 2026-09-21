@@ -146,11 +146,14 @@ def main():
                         "with IDE on the board does not need one here."},
         {"name": "hddGeometry", "display": "Hard Disk Geometry", "type": "enum",
          "options": ["Auto", "Custom"], "default": "Auto",
-         "description": "'Auto' derives the disk's cylinders, heads and sectors from "
-                        "the image's own size, the way PCem's new-disk dialog does, "
-                        "and is right for any image made by PCem or by this core. "
-                        "'Custom' exposes the three numbers, for an image whose "
-                        "geometry cannot be guessed from its length."},
+         "description": "'Auto' reads the disk's cylinders, heads and sectors out of "
+                        "the image itself - the CHS fields of its own partition table "
+                        "first, its length second - and is right for any image made by "
+                        "PCem, by DOS, by Windows or by this core. A .vhd carries its "
+                        "geometry and always uses it. 'Custom' exposes the three "
+                        "numbers, for an unpartitioned image that is not a whole "
+                        "number of cylinders. Getting this wrong is a disk that does "
+                        "not boot rather than an error, so prefer Auto."},
         {"name": "hddSectors", "display": "Hard Disk Sectors", "type": "int",
          "default": 0, "min": 0, "max": 255,
          "exposedWhen": {"setting": "hddGeometry", "is": "Custom"},
@@ -258,8 +261,13 @@ def main():
             "sbrk, sealed, invisible, plain, mmap. A PC's RAM is up to 512 MB and PCem "
             "mallocs it, which musl routes to mmap along with the memory lookup tables; "
             "the recompiler's arena is a further 120 MB (codegen_allocator.h). invisible "
-            "holds the frame buffer, which no savestate needs to carry.",
-        "memoryLayoutMiB": [64, 16, 320, 64, 2048],
+            "holds the frame buffer, which no savestate needs to carry. mmap also holds "
+            "the hard disks' write overlay, 4 KiB a written block: a seeded disk costs "
+            "nothing until the guest writes, so the 4096 here is what BOUNDS a machine "
+            "that writes a lot - a Windows XP install is about 1.1 GiB of blocks - and "
+            "not what it reserves. A write the arena cannot hold is reported to the "
+            "guest as a write fault and said so on stderr, never silently dropped.",
+        "memoryLayoutMiB": [64, 16, 320, 64, 4096],
         "video": {
             "_comment":
                 "The BUFFER CAPACITY. A PC changes video mode whenever it likes, so the "

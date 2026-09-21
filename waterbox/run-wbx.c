@@ -23,6 +23,32 @@
 #include <time.h>
 
 typedef struct { FILE *f; } freader;
+
+/* a savestate in memory, so a leg can take one and put it back */
+typedef struct { uint8_t *p; size_t len, cap, pos; } membuf;
+static int32_t mem_write(uintptr_t ud, const uint8_t *d, uintptr_t s)
+{
+        membuf *m = (membuf *)ud;
+        if (m->len + s > m->cap) {
+                size_t cap = m->cap ? m->cap * 2 : (1u << 20);
+                while (cap < m->len + s) cap *= 2;
+                m->p = (uint8_t *)realloc(m->p, cap);
+                if (!m->p) return 0;
+                m->cap = cap;
+        }
+        memcpy(m->p + m->len, d, s);
+        m->len += s;
+        return 1;
+}
+static intptr_t mem_read(uintptr_t ud, uint8_t *d, uintptr_t s)
+{
+        membuf *m = (membuf *)ud;
+        size_t n = m->len - m->pos;
+        if (n > s) n = s;
+        memcpy(d, m->p + m->pos, n);
+        m->pos += n;
+        return (intptr_t)n;
+}
 static intptr_t file_read(uintptr_t ud, uint8_t *d, uintptr_t s)
 {
         return (intptr_t)fread(d, 1, s, ((freader *)ud)->f);
@@ -34,6 +60,14 @@ typedef void     (MB_GUEST_ABI *setfn)(int32_t, int32_t);
 typedef uint64_t (MB_GUEST_ABI *u64fn)(void);
 typedef const char *(MB_GUEST_ABI *strfn)(void);
 typedef uintptr_t (MB_GUEST_ABI *ptrfn)(void);
+typedef const char *(MB_GUEST_ABI *strifn)(int32_t);
+typedef int64_t  (MB_GUEST_ABI *i64ifn)(int32_t);
+typedef int64_t  (MB_GUEST_ABI *readfn)(int32_t, int64_t, int64_t);
+
+/* the whole exported disk, hashed through the save-data window - the same
+ * route the engine exports by */
+typedef int64_t (MB_GUEST_ABI *readfn2)(int32_t, int64_t, int64_t);
+static uint64_t disk_hash(mb_host *h);
 
 static double now_s(void)
 {
@@ -59,11 +93,43 @@ static void die(mb_return *r, const char *what)
         if (r->error_message[0]) { fprintf(stderr, "%s: %s\n", what, r->error_message); exit(1); }
 }
 
+static uint64_t disk_hash(mb_host *h)
+{
+        mb_return r;
+        uint64_t hash = 1469598103934665603ULL;
+        int32_t k, n;
+        intfn Count;
+        i64ifn Size;
+        readfn Read;
+        ptrfn Scratch;
+        wbx_get_proc_addr(h, "GetSaveDataFileCount", &r);
+        if (!r.data) return 0;
+        Count = (intfn)r.data;
+        wbx_get_proc_addr(h, "GetSaveDataFileSize", &r);    Size = (i64ifn)r.data;
+        wbx_get_proc_addr(h, "ReadSaveDataFile", &r);       Read = (readfn)r.data;
+        wbx_get_proc_addr(h, "GetSaveDataScratch", &r);     Scratch = (ptrfn)r.data;
+        n = (int32_t)Count();
+        for (k = 0; k < n; k++) {
+                int64_t sz = Size(k), done = 0;
+                while (done < sz) {
+                        int64_t got = Read(k, done, sz - done), b;
+                        const uint8_t *win;
+                        if (got <= 0) break;
+                        win = (const uint8_t *)Scratch();
+                        for (b = 0; b < got; b++) { hash ^= win[b]; hash *= 1099511628211ULL; }
+                        done += got;
+                }
+        }
+        return hash;
+}
+
 int main(int argc, char **argv)
 {
         const char *wbx, *workdir;
         long frames;
-        int digests = 0, every = 1, driveTypes = 0, i;
+        int digests = 0, every = 1, driveTypes = 0, hddStats = 0, dumpCfg = 0, i;
+        const char *savedataDir = NULL;
+        long stateAt = -1, stateEvery = 0;
         long shotFrame = -1, pressAt[32];
         int pressBtn[32], nPress = 0;
         const char *shotPath = NULL;
@@ -78,7 +144,7 @@ int main(int argc, char **argv)
                 .sealed_size = 16u   << 20,
                 .invis_size  = 320u  << 20,
                 .plain_size  = 64u   << 20,
-                .mmap_size   = 2048u << 20,
+                .mmap_size   = (uintptr_t)4096 << 20,   /* matches waterbox.config; NOT 4096u<<20, which is 32-bit and comes out zero */
         };
 
         if (argc < 4) {
@@ -90,6 +156,13 @@ int main(int argc, char **argv)
                 if (!strcmp(argv[i], "--digests")) digests = 1;
                 else if (!strcmp(argv[i], "--every") && i + 1 < argc) every = atoi(argv[++i]);
                 else if (!strcmp(argv[i], "--drive-types")) driveTypes = 1;
+                else if (!strcmp(argv[i], "--hdd-stats")) hddStats = 1;
+                else if (!strcmp(argv[i], "--dump-cfg")) dumpCfg = 1;
+                else if (!strcmp(argv[i], "--state-roundtrip") && i + 1 < argc)
+                        stateAt = atol(argv[++i]);
+                else if (!strcmp(argv[i], "--state-every") && i + 1 < argc)
+                        stateEvery = atol(argv[++i]);
+                else if (!strcmp(argv[i], "--savedata-out") && i + 1 < argc) savedataDir = argv[++i];
                 else if (!strcmp(argv[i], "--press") && i + 1 < argc && nPress < 32) {
                         /* <frame>=<button index>, held for a few frames - a
                          * real machine sees a key down for longer than 10 ms */
@@ -154,6 +227,11 @@ int main(int argc, char **argv)
                 return 1;
         }
 
+        if (dumpCfg) {
+                strfn Cfg = (strfn)proc(h, "GetComposedConfig", 1);
+                printf("---- composed .cfg ----\n%s-----------------------\n", Cfg());
+        }
+
         if (driveTypes) {
                 intfn A = (intfn)proc(h, "GetDriveAType", 1);
                 intfn B = (intfn)proc(h, "GetDriveBType", 1);
@@ -175,6 +253,8 @@ int main(int argc, char **argv)
                 uint64_t stream = 1469598103934665603ULL;
                 long n, audioTotal = 0;
                 double t0 = now_s(), wall;
+                membuf st = {0};
+                uint64_t afterSave = 0, afterLoad = 0, diskAtSave = 0;
 
                 for (n = 0; n < frames; n++) {
                         uint64_t dg;
@@ -183,9 +263,17 @@ int main(int argc, char **argv)
                                 if (n == pressAt[k]) SetButton(pressBtn[k], 1);
                                 if (n == pressAt[k] + 8) SetButton(pressBtn[k], 0);
                         }
+                        if (stateAt >= 0 && n == stateAt) {
+                                diskAtSave = disk_hash(h);
+                                wbx_save_state(h, mem_write, (uintptr_t)&st, &r);
+                                die(&r, "save_state");
+                        }
                         FrameAdvance(0);
                         dg = Digest();
                         stream ^= dg; stream *= 1099511628211ULL;
+                        if (stateAt >= 0 && n >= stateAt) {
+                                afterSave ^= dg; afterSave *= 1099511628211ULL;
+                        }
                         audioTotal += Samples();
                         if (shotPath && n == shotFrame) {
                                 /* A picture, because a stuck machine is
@@ -207,11 +295,115 @@ int main(int argc, char **argv)
                                 }
                                 if (o) fclose(o);
                         }
+                        /* what a state WEIGHS as the machine runs, beside how much
+                         * of the disk it is holding - the two numbers the disk
+                         * overlay's cost is made of */
+                        if (stateEvery > 0 && (n % stateEvery) == 0) {
+                                membuf probe = {0};
+                                i64ifn Held = (i64ifn)proc(h, "GetHddBlocksHeld", 0);
+                                intfn BlockBytes = (intfn)proc(h, "GetHddBlockBytes", 0);
+                                wbx_save_state(h, mem_write, (uintptr_t)&probe, &r);
+                                die(&r, "save_state");
+                                printf("STATESIZE frame=%ld bytes=%zu held_blocks=%lld"
+                                       " held_bytes=%lld\n", n, probe.len,
+                                       Held ? (long long)Held(0) : -1,
+                                       (Held && BlockBytes)
+                                               ? (long long)Held(0) * BlockBytes() : -1);
+                                fflush(stdout);
+                                free(probe.p);
+                        }
                         if (digests && (n % every) == 0)
                                 printf("frame %6ld digest=%016llx %dx%d\n",
                                        n, (unsigned long long)dg, W(), H());
                 }
                 wall = now_s() - t0;
+
+                /* THE DISK IS MACHINE STATE, and this is what proves it: the
+                 * disk as it stood when the state was taken, the disk at the
+                 * end of the run, and the disk the instant the state is put
+                 * back. If the second differs from the first (the machine
+                 * really did write) and the third equals the first, then a
+                 * rewind past a write took the disk back with it. */
+                if (stateAt >= 0 && st.len) {
+                        uint64_t diskEnd = disk_hash(h), diskLoaded;
+                        st.pos = 0;
+                        wbx_load_state(h, mem_read, (uintptr_t)&st, &r);
+                        die(&r, "load_state");
+                        {
+                                uintptr_t sl = proc(h, "StateLoaded", 0);
+                                if (sl) ((void (MB_GUEST_ABI *)(void))sl)();
+                        }
+                        diskLoaded = disk_hash(h);
+                        for (n = stateAt; n < frames; n++) {
+                                uint64_t dg;
+                                int k2;
+                                for (k2 = 0; k2 < nPress; k2++) {
+                                        if (n == pressAt[k2]) SetButton(pressBtn[k2], 1);
+                                        if (n == pressAt[k2] + 8) SetButton(pressBtn[k2], 0);
+                                }
+                                FrameAdvance(0);
+                                dg = Digest();
+                                afterLoad ^= dg; afterLoad *= 1099511628211ULL;
+                        }
+                        printf("STATE bytes=%zu disk_at_save=%016llx disk_at_end=%016llx"
+                               " disk_after_load=%016llx replay=%016llx/%016llx\n",
+                               st.len, (unsigned long long)diskAtSave,
+                               (unsigned long long)diskEnd,
+                               (unsigned long long)diskLoaded,
+                               (unsigned long long)afterSave,
+                               (unsigned long long)afterLoad);
+                }
+
+                /* The save-data export, through the WINDOW: there is no
+                 * address at which a 4 GiB disk exists, so the host asks for
+                 * it a piece at a time, exactly as the engine does
+                 * (session.cpp:2193). */
+                if (savedataDir || hddStats) {
+                        intfn Count = (intfn)proc(h, "GetSaveDataFileCount", 1);
+                        strifn Name = (strifn)proc(h, "GetSaveDataFileName", 1);
+                        i64ifn Size = (i64ifn)proc(h, "GetSaveDataFileSize", 1);
+                        readfn Read = (readfn)proc(h, "ReadSaveDataFile", 1);
+                        ptrfn Scratch = (ptrfn)proc(h, "GetSaveDataScratch", 1);
+                        i64ifn Held = (i64ifn)proc(h, "GetHddBlocksHeld", 0);
+                        i64ifn Matched = (i64ifn)proc(h, "GetHddSeedMatches", 0);
+                        intfn BlockBytes = (intfn)proc(h, "GetHddBlockBytes", 0);
+                        int32_t nf = (int32_t)Count(), k;
+                        for (k = 0; k < nf; k++) {
+                                const char *nm = Name(k);
+                                int64_t sz = Size(k), done = 0;
+                                if (hddStats && Held && Matched && BlockBytes)
+                                        printf("HDD %d %s size=%lld held_blocks=%lld"
+                                               " block_bytes=%d seed_matches=%lld\n",
+                                               k, nm ? nm : "?", (long long)sz,
+                                               (long long)Held(k), BlockBytes(),
+                                               (long long)Matched(k));
+                                if (!savedataDir) continue;
+                                {
+                                        char path[1024];
+                                        FILE *o;
+                                        snprintf(path, sizeof path, "%s/%s", savedataDir,
+                                                 nm ? nm : "savedata.bin");
+                                        o = fopen(path, "wb");
+                                        if (!o) { fprintf(stderr, "cannot write %s\n", path); return 4; }
+                                        while (done < sz) {
+                                                int64_t got = Read(k, done, sz - done);
+                                                const uint8_t *win;
+                                                if (got <= 0) break;
+                                                win = (const uint8_t *)Scratch();
+                                                if (!win) break;
+                                                fwrite(win, 1, (size_t)got, o);
+                                                done += got;
+                                        }
+                                        fclose(o);
+                                        if (done != sz) {
+                                                fprintf(stderr, "savedata %s short: %lld of %lld\n",
+                                                        nm ? nm : "?", (long long)done, (long long)sz);
+                                                return 4;
+                                        }
+                                        printf("savedata %s %lld bytes\n", path, (long long)sz);
+                                }
+                        }
+                }
 
                 /* Liveness before any number: a dead guest returns 0 from
                  * every call and "finishes" instantly (docs/M1B.md 6b). */

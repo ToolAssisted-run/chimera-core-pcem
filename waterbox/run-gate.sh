@@ -58,6 +58,12 @@ else
 	report FAIL "package builds" "see build/gate/package.log"
 fi
 
+if MINIBOX_DIR="$mb" sh "$here/build-run-wbx.sh" > "$work/run-wbx.log" 2>&1; then
+	report PASS "the harness builds"
+else
+	report FAIL "the harness builds" "see build/gate/run-wbx.log"
+fi
+
 # The core.wbx inside the package must be NEWER than the driver it is built
 # from. This is the leg that would have caught the stale-binary package.
 if [ -f "$root/build/wbx/pcem.wbx" ] \
@@ -295,6 +301,228 @@ PY
 	fi
 else
 	report SKIP "Alley Cat boots and animates" "no game image at $game"
+fi
+
+# --------------------------- 4e. hard disks: the bytes have to SURVIVE
+# The claim is not "a write did not crash". It is that a guest write is held,
+# leaves through the save-data channel, goes back in as the seed, and is read
+# by the machine on the other side. So the proof is a ROUND TRIP, checked on
+# the bytes and not on the screen:
+#
+#   run 1  a boot sector writes a magic string to LBA 1 of a blank disk,
+#          and the export must contain it;
+#   run 2  a different boot sector, seeded with run 1's EXPORT, reads LBA 1
+#          and copies it to LBA 2 only if it matches - so the magic at LBA 2
+#          of run 2's export cannot exist unless the machine read the seed.
+#
+# The differential is run 2's boot sector against a FRESH blank disk, where
+# LBA 2 must stay zero. Without it, an overlay that simply smeared the magic
+# over the disk would pass.
+if sh "$root/tools/make-hdd-probe.sh" "$work/hdd" > "$work/hdd-probe.log" 2>&1; then
+	report PASS "the disk probes assemble"
+else
+	report FAIL "the disk probes assemble" "see build/gate/hdd-probe.log"
+fi
+
+hdd_settings() {
+	python3 - "$1" <<'HDDSET'
+import json, sys
+d = sys.argv[1]
+json.dump({"system": "x86 PC", "machine": "ga686bx - [Slot 1] Gigabyte GA-686BX",
+           "cpu": "Pentium II/450", "fpu": "builtin", "dynarec": True,
+           "memSizeKB": 16384, "videoCard": "v3_3000 - 3DFX Voodoo 3 3000",
+           "soundCard": "none - None", "hddController": "ide - [IDE] Standard IDE",
+           "mouseType": "2-button mouse (PS/2)", "driveAType": "Auto",
+           "driveBType": "None", "cdDrive": "None", "videoSpeed": "Fast VLB/PCI",
+           "fpsNumerator": 100, "fpsDenominator": 1}, open(d + "/settings", "w"))
+json.dump({"floppy_a": ["boot.img"], "hdd": ["disk.img"]}, open(d + "/slots", "w"))
+HDDSET
+}
+
+hdd_run() {  # <workdir> <floppy> <disk image to seed from> <export dir>
+	rm -rf "$1"; mkdir -p "$1" "$4"
+	cp "$gw/ga686bx_6BX.F2a" "$gw/voodoo3_3000_3k12sd.rom" "$gw/awe32.raw" \
+	   "$gw/mda.rom" "$1/"
+	cp "$2" "$1/boot.img"
+	cp "$3" "$1/disk.img"
+	hdd_settings "$1"
+	"$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$1" 3000 \
+		--hdd-stats --savedata-out "$4"
+}
+
+magic_at() {  # <image> <lba> -> "yes" or "no"
+	python3 - "$1" "$2" <<'HDDMAGIC'
+import sys
+off = int(sys.argv[2]) * 512
+d = open(sys.argv[1], "rb").read(off + 16)
+print("yes" if d[off:off + 16] == b"CHIMERA-PCEM-HD!" else "no")
+HDDMAGIC
+}
+
+hdd_run "$work/hdd/w1" "$work/hdd/writer.img" "$work/hdd/blank.img" \
+	"$work/hdd/out1" > "$work/hdd1.log" 2>&1 || true
+if [ -f "$work/hdd/out1/disk.img" ] \
+   && [ "$(magic_at "$work/hdd/out1/disk.img" 1)" = "yes" ]; then
+	report PASS "a guest write leaves as save data" \
+		"$(sed -n 's/^HDD 0 .*held_blocks=\([0-9]*\).*/\1 block(s) held/p' "$work/hdd1.log")"
+else
+	report FAIL "a guest write leaves as save data" "no magic at LBA 1; see build/gate/hdd1.log"
+fi
+
+hdd_run "$work/hdd/w2" "$work/hdd/reader.img" "$work/hdd/out1/disk.img" \
+	"$work/hdd/out2" > "$work/hdd2.log" 2>&1 || true
+hdd_run "$work/hdd/w3" "$work/hdd/reader.img" "$work/hdd/blank.img" \
+	"$work/hdd/out3" > "$work/hdd3.log" 2>&1 || true
+seeded="no"; control="yes"
+[ -f "$work/hdd/out2/disk.img" ] && seeded=$(magic_at "$work/hdd/out2/disk.img" 2)
+[ -f "$work/hdd/out3/disk.img" ] && control=$(magic_at "$work/hdd/out3/disk.img" 2)
+if [ "$seeded" = "yes" ] && [ "$control" = "no" ]; then
+	report PASS "an exported disk seeds the next run" "and a blank one does not"
+else
+	report FAIL "an exported disk seeds the next run" \
+		"seeded=$seeded control=$control (the control must be no)"
+fi
+
+# The overlay is SPARSE: a 10 MB blank disk with one sector written must hold
+# one 4 KiB block, not the disk. This is the leg that notices the day somebody
+# turns the overlay back into a copy.
+held=$(sed -n 's/^HDD 0 .*held_blocks=\([0-9]*\).*/\1/p' "$work/hdd1.log")
+if [ -n "${held:-}" ] && [ "$held" -ge 1 ] && [ "$held" -le 8 ]; then
+	report PASS "the overlay is sparse" "$held block(s) for one sector written"
+else
+	report FAIL "the overlay is sparse" "held ${held:-none} blocks"
+fi
+
+# --------------------------- 4f. a written disk block is MACHINE STATE
+# If it were not, a rewind past a write would leave the disk ahead of the
+# machine and every re-record after it would be wrong. The leg needs the disk
+# to have CHANGED between the state and the end of the run, or it proves
+# nothing, so that is asserted too.
+st=$("$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$work/hdd/w1" 3000 \
+	--state-roundtrip 300 2>/dev/null | sed -n 's/^STATE //p')
+sv=$(printf '%s' "$st" | sed -n 's/.*disk_at_save=\([0-9a-f]*\).*/\1/p')
+en=$(printf '%s' "$st" | sed -n 's/.*disk_at_end=\([0-9a-f]*\).*/\1/p')
+ld=$(printf '%s' "$st" | sed -n 's/.*disk_after_load=\([0-9a-f]*\).*/\1/p')
+r1=$(printf '%s' "$st" | sed -n 's/.*replay=\([0-9a-f]*\)\/[0-9a-f]*.*/\1/p')
+r2=$(printf '%s' "$st" | sed -n 's/.*replay=[0-9a-f]*\/\([0-9a-f]*\).*/\1/p')
+if [ -n "${sv:-}" ] && [ "$sv" != "$en" ] && [ "$ld" = "$sv" ] && [ "$r1" = "$r2" ]; then
+	report PASS "the disk rewinds with the machine" "and the replay is identical"
+else
+	report FAIL "the disk rewinds with the machine" "$st"
+fi
+
+# ------------------------------- 4g. geometry comes out of the image
+# PCem keeps C/H/S in its config and NOTHING in the emulation core derives it
+# (hdd_load hands hdc[d] straight to ide.c as the drive's identity), so a zero
+# there is a drive of no sectors and "Auto" has to mean something. The blank
+# disk is 63/16/20 by construction and the composed .cfg has to say so.
+cfg=$("$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$work/hdd/w1" 2 \
+	--dump-cfg 2>/dev/null)
+geom=$(printf '%s\n' "$cfg" | sed -n 's/^hdc_\(sectors\|heads\|cylinders\) = /\1=/p' | tr '\n' ' ')
+if [ "$geom" = "sectors=63 heads=16 cylinders=20 " ]; then
+	report PASS "Auto derives the disk geometry" "63/16/20"
+else
+	report FAIL "Auto derives the disk geometry" "got [$geom]"
+fi
+
+# NEGATIVE CONTROL: Custom must override it, or the three numbers are
+# decorative and an image Auto cannot read is unusable.
+python3 - "$work/hdd/w1/settings" <<'HDDCUST'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p))
+d["hddGeometry"] = "Custom"; d["hddSectors"] = 17
+d["hddHeads"] = 15; d["hddCylinders"] = 40
+json.dump(d, open(p, "w"))
+HDDCUST
+cfg=$("$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$work/hdd/w1" 2 \
+	--dump-cfg 2>/dev/null)
+geom=$(printf '%s\n' "$cfg" | sed -n 's/^hdc_\(sectors\|heads\|cylinders\) = /\1=/p' | tr '\n' ' ')
+if [ "$geom" = "sectors=17 heads=15 cylinders=40 " ]; then
+	report PASS "Custom geometry overrides Auto" "negative control"
+else
+	report FAIL "Custom geometry overrides Auto" "got [$geom]"
+fi
+
+# ------------------- 4i. the whole route, through the engine and a project
+# Every leg above drives the core through run-wbx, which is the guest ABI and
+# nothing else. A user's disk travels further than that: a project file names
+# it in the hdd slot, the engine mounts it by path, the driver finds it in the
+# "slots" mount, and Emulator > Export Save Data pulls it back out through
+# ce_session_savedata_read. A slot is invisible to every other leg here,
+# because a run without a project has no slots mount at all.
+if [ -x "$run" ] && [ -f "$pkg" ]; then
+	pj="$work/hdd/project"; rm -rf "$pj"; mkdir -p "$pj/files" "$pj/out"
+	cp "$work/hdd/writer.img" "$pj/files/boot.img"
+	cp "$work/hdd/blank.img" "$pj/files/disk.img"
+	if python3 "$here/tests/make-project.py" "$pkg" "$pj/p.chimeraProject" 3000 \
+		--setting "machine=ga686bx - [Slot 1] Gigabyte GA-686BX" \
+		--setting "cpu=Pentium II/450" --setting "fpu=builtin" \
+		--setting "memSizeKB=16384" \
+		--setting "videoCard=v3_3000 - 3DFX Voodoo 3 3000" \
+		--setting "soundCard=none - None" \
+		--setting "hddController=ide - [IDE] Standard IDE" \
+		--setting "cdDrive=None" --setting "driveBType=None" \
+		--setting "videoSpeed=Fast VLB/PCI" \
+		--file "floppy_a=$pj/files/boot.img" --file "hdd=$pj/files/disk.img" \
+		--firmware "ga686bx_6BX.F2a=$roms/ga686bx/6BX.F2a" \
+		--firmware "voodoo3_3000_3k12sd.rom=$roms/voodoo3_3000/3k12sd.rom" \
+		--firmware "mda.rom=$roms/mda.rom" > "$work/project.log" 2>&1 \
+	   && "$run" --project "$pj/p.chimeraProject" "$pkg" --files "$pj/files" \
+		--firmware "ga686bx_6BX.F2a=$roms/ga686bx/6BX.F2a" \
+		--firmware "voodoo3_3000_3k12sd.rom=$roms/voodoo3_3000/3k12sd.rom" \
+		--firmware "mda.rom=$roms/mda.rom" \
+		--export-savedata "$pj/out" >> "$work/project.log" 2>&1 \
+	   && grep -q "^savedata=1" "$work/project.log" \
+	   && [ "$(magic_at "$pj/out/disk.img" 1)" = "yes" ]; then
+		report PASS "a project's disk exports through the engine" \
+			"$(stat -c %s "$pj/out/disk.img") bytes"
+	else
+		report FAIL "a project's disk exports through the engine" \
+			"see build/gate/project.log"
+	fi
+else
+	report SKIP "a project's disk exports through the engine" "no chimera-run"
+fi
+
+# ----------------------- 4h. a big seeded disk costs nothing until written
+# The whole point of the sparse overlay, and the number the state cost rests
+# on: a 4121 MB Windows XP image must not put 4121 MB anywhere, and a state
+# taken at the first frame must not know about it. Skipped when there is no
+# such image on this machine.
+xpimg="${PCEM_XP_IMAGE:-$root/build/xp/winxp-desktop.img}"
+if [ -f "$xpimg" ]; then
+	xw="$work/hdd/xp"; rm -rf "$xw"; mkdir -p "$xw"
+	cp "$gw/ga686bx_6BX.F2a" "$gw/voodoo3_3000_3k12sd.rom" "$gw/awe32.raw" \
+	   "$gw/mda.rom" "$xw/"
+	ln -sf "$(cd "$(dirname "$xpimg")" && pwd)/$(basename "$xpimg")" "$xw/winxp.img"
+	python3 - "$xw" <<'HDDXP'
+import json, sys
+d = sys.argv[1]
+json.dump({"system": "x86 PC", "machine": "ga686bx - [Slot 1] Gigabyte GA-686BX",
+           "cpu": "Pentium II/450", "fpu": "builtin", "dynarec": True,
+           "memSizeKB": 262144, "videoCard": "v3_3000 - 3DFX Voodoo 3 3000",
+           "soundCard": "sbawe32 - Sound Blaster AWE32",
+           "hddController": "ide - [IDE] Standard IDE",
+           "mouseType": "2-button mouse (PS/2)", "driveAType": "3.5\" 2.88M",
+           "driveBType": "5.25\" 1.2M", "cdDrive": "None",
+           "videoSpeed": "Fast VLB/PCI", "fpsNumerator": 100,
+           "fpsDenominator": 1}, open(d + "/settings", "w"))
+json.dump({"hdd": ["winxp.img"]}, open(d + "/slots", "w"))
+HDDXP
+	xbytes=$("$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$xw" 20 \
+		--state-every 1000 2>/dev/null \
+		| sed -n 's/^STATESIZE frame=0 bytes=\([0-9]*\).*/\1/p')
+	xgeom=$("$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$xw" 2 --dump-cfg 2>/dev/null \
+		| sed -n 's/^hdc_\(sectors\|heads\|cylinders\) = /\1=/p' | tr '\n' ' ')
+	if [ -n "${xbytes:-}" ] && [ "$xbytes" -lt 33554432 ] \
+	   && [ "$xgeom" = "sectors=63 heads=16 cylinders=8374 " ]; then
+		report PASS "a 4 GiB seed costs nothing" \
+			"state $((xbytes / 1048576)) MiB, geometry 63/16/8374"
+	else
+		report FAIL "a 4 GiB seed costs nothing" "state ${xbytes:-?} bytes, geometry [$xgeom]"
+	fi
+else
+	report SKIP "a 4 GiB seed costs nothing" "no XP image at $xpimg"
 fi
 
 # ------------------------------------------------------- 5. savestates

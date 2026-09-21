@@ -14,6 +14,7 @@ instruction, until he says otherwise.
 | `docs/M1A.md` | the native speed measurement and the green/amber/red decision |
 | `docs/M1B.md` | the sandbox JIT spike: does the recompiler work in miniBox, and what it costs |
 | `docs/XP.md` | Windows XP installed and measured to the desktop, and what actually costs |
+| `docs/HDD.md` | writable hard disks: the sparse overlay, the save-data export, derived geometry, and what a state costs |
 | `extern/pcem` | upstream `TASEmulators/pcem`, pinned (see PLAN.md, "The repository") |
 | `configs/` | PCem `.cfg` files reproducing the TASVideos published configurations |
 | `patches/` | full-file patches against `extern/pcem` |
@@ -37,7 +38,16 @@ instruction, until he says otherwise.
   PCem's recompiler meeting code it has never seen - not the Voodoo 3's
   rasteriser and not host disk I/O, both of which were tested and ruled
   out. `docs/XP.md`.
-- M2 (the machine, native) is next.
+- **Hard disks are writable** (2026-09-21). The slot's image seeds a sparse
+  write overlay instead of being written in place; writes leave through the
+  save-data channel and an exported image goes straight back into the slot.
+  A 4121 MB Windows XP image costs **nothing** until the guest writes, a boot
+  to the logon screen costs 7 MiB of a 339 MB state, and an install would cost
+  about 1.1 GiB - said out loud in `docs/HDD.md` rather than discovered later.
+  Geometry is derived from the image (Auto used to write three zeros, which is
+  a drive of no sectors). Gate 25/25. An upstream NULL-`atapi` crash fixed on
+  the way.
+- M2 (the machine, native) continues.
 
 ## Building the M1a harness
 
