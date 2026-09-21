@@ -10,7 +10,7 @@ is a negative control that runs every time.
 This is PLAN.md section 6 built - but built on the frontend's Option B, not the
 Option C that section recommended. See section 8.
 
-## 1. The contract, and the one thing it does not do
+## 1. The contract, and a mistake worth keeping
 
 The declaration is `~/chimera/docs/project.md`, "Configuration presets":
 
@@ -26,52 +26,78 @@ exactly as if each had been typed by hand, and every one of them is sitting in
 the grid where it can be read and changed afterwards. A preset is a starting
 point somebody else has already got working, never a narrowing.
 
-**A preset cannot set the machine.** `NewProjectWizard.ApplySelectedPreset`
-skips the machine setting and the renderer outright:
+**Every preset sets the machine, and that is the most important thing it says.**
+"Packard Bell PB570" IS the preset; a bundle of a CPU, a video card and a sound
+card without the board they plug into is not a machine anybody asked for, and
+on the wrong board the core refuses to load at all - *"this machine does not
+take an 'i386DX/20'. It takes: ..."*.
+
+### The mistake, because it is the instructive part
+
+The first version of this work left `machine` OUT of all five presets and made
+`check-presets.py` FAIL a preset that set it. The reasoning was this line of
+`NewProjectWizard.ApplySelectedPreset`:
 
 ```csharp
 if (pair.Key == RendererSetting || pair.Key == _cfg.MachineSetting) continue;
 ```
 
-and it skips them in SILENCE - they are not even listed among the keys it
-ignored. The reason is good: the machine is asked on page one because it
-decides which files the project takes and which ROMs it asks for, and the
-settings page is downstream of that decision. But for this core it has a
-consequence worth saying plainly, because a user will hit it:
+read together with project.md's prose - *"the machine setting and the renderer
+are not a preset's to move"*. Both are real. What was never checked is what
+`_cfg.MachineSetting` IS for this package.
 
-> Applying "DOS, late 1980s - Compaq Deskpro 386" does not select the Compaq
-> Deskpro 386. The user picks the board on page one; the preset fills in
-> everything else.
+It is the **declared** machine chooser, the one that goes with a `machines[]`
+array, and this package declares neither: `machineSetting` is absent from
+`waterbox.config` and `machines[]` is empty. So it is null, `"machine"` never
+equals null, and `machine` is an ordinary setting the wizard writes like any
+other. There is no page-one machine question here to be downstream of.
 
-So every label NAMES its board, every description says to pick that board
-first, and `tools/check-presets.py` FAILS a preset whose label and description
-between them do not name the board in its `when[]`. The failure when somebody
-does not read it is loud rather than quiet: applying the Deskpro preset on some
-other machine sets `cpu = i386DX/20`, and the core refuses to load with *"this
-machine does not take an 'i386DX/20'. It takes: ..."* and the list of the ones
-it does.
+Measured, in the running frontend (section 10):
 
-**`when[]` is inert here, and is declared anyway.** `PresetsFor` compares a
-preset's `when[]` against the chosen MachineConfig, and this package declares no
-`machines[]` at all - one system, "PC", whose 93 boards are a *setting*. With no
-MachineConfig, `AppliesTo(null)` is true and all five presets are always
-offered. The `when[]` is still the semantically right content (a MachineConfig's
-own `When` holds values of the package's machine setting, which is exactly what
-is in there), it is what names the board for the label check, and it is what
-`check-presets.py` validates against the 93 declared machine options. Nothing
-reads it at runtime today.
+```
+PROBE: MachineSetting=<null> Machines=0 Presets=5
+PROBE: dos_late_80s applied, machine now deskpro386 - [386DX] Compaq Deskpro 386
+```
+
+**How it survived a gate is the part to remember.** The check was a Python
+stand-in for `ApplySelectedPreset`, and the stand-in was written from the same
+sentence the belief came from. It skipped `machine` because the belief said to,
+so it agreed with the belief, and five presets, two gate legs, a boot proof and
+a document all agreed with each other while being wrong. That is `gates.md`
+mode E - *a synthetic stand-in that does not behave like the real subject* -
+and it is worse than the examples there, because those stand-ins at least came
+from a different source than the claim.
+
+The rule it forces: **when a stand-in and the real subject can differ, the
+stand-in's job is to be checked against the real one at least once.** Section 10
+is that check, now done, including watching it fail.
+
+**`when[]` is dropped.** `PresetsFor` gates a preset by MachineConfig, and with
+no `machines[]` there is no MachineConfig, so `AppliesTo(null)` is true and
+every preset is offered regardless - a `when[]` here would be inert. The first
+version declared it anyway, "semantically right and forward-compatible", which
+is exactly the trap: an inert declaration that reads as load-bearing is worse
+than none, and this one was load-bearing in the wrong direction (it was where
+the resolver got the board from). The board lives in `values["machine"]`, where
+it does something, and `check-presets.py` now FAILS a preset that declares
+`when[]` while the package declares no `machines[]`.
 
 ## 2. The five, and where each value comes from
 
 Chronological order, because the selector does not sort.
 
-| id | label | board |
+| id | label | `values["machine"]` |
 |---|---|---|
-| `dos_late_80s` | DOS, late 1980s - Compaq Deskpro 386 | `deskpro386` |
-| `dos_early_90s` | DOS, early 1990s - Packard Bell PB570 | `pb570` |
-| `dos_late_90s` | DOS, late 1990s - Gigabyte GA-686BX | `ga686bx` |
-| `win95b_osr2` | Windows 95b OSR 2 - Gigabyte GA-686BX | `ga686bx` |
-| `winxp_sp3_home` | Windows XP SP3 Home Edition - Gigabyte GA-686BX | `ga686bx` |
+| `dos_late_80s` | DOS, late 1980s - Compaq Deskpro 386 | `deskpro386 - [386DX] Compaq Deskpro 386` |
+| `dos_early_90s` | DOS, early 1990s - Packard Bell PB570 | `pb570 - [Socket 5] Packard Bell PB570` |
+| `dos_late_90s` | DOS, late 1990s - Gigabyte GA-686BX | `ga686bx - [Slot 1] Gigabyte GA-686BX` |
+| `win95b_osr2` | Windows 95b OSR 2 - Gigabyte GA-686BX | `ga686bx - [Slot 1] Gigabyte GA-686BX` |
+| `winxp_sp3_home` | Windows XP SP3 Home Edition - Gigabyte GA-686BX | `ga686bx - [Slot 1] Gigabyte GA-686BX` |
+
+The label carries the board because the label is all the selector shows, and
+`check-presets.py` fails a preset whose label does not name the board it
+builds. The descriptions say what the machine is and what it is for; none of
+them tells the user to go and pick a board, because none of them has to.
 
 Sources, fetched 2026-09-21: `tasvideos.org/EmulatorResources/PCem/DOS` and
 `/DOS/Configurations`, `/Windows/Configurations/95` and `/XP`. The era wording
@@ -104,7 +130,7 @@ a person to know what a default is.
 
 | TASVideos row | Chimera | |
 |---|---|---|
-| Machine | `machine` | existing - but see section 1: a preset cannot set it |
+| Machine | `machine` | existing, and **every preset sets it** - see section 1 |
 | CPU | `cpu` | existing |
 | Memory | `memSizeKB` | existing (PCem's `mem_size` is always KB) |
 | Video: which card | `videoCard` | existing |
@@ -247,9 +273,11 @@ port's own, not as TASVideos'.
 
 ## 6. Firmware, per preset, against the real folder
 
-Measured 2026-09-21 by resolving each preset, evaluating every firmware entry's
-`requiredWhen` against the resolved settings, and matching the requirement's
-SHA1 against every file under
+Measured 2026-09-21, and **re-measured after the board moved into
+`values["machine"]`**, because the machine decides the BIOS and therefore the
+requirement. Each preset resolved, every firmware entry's `requiredWhen`
+evaluated against the resolved settings, and the requirement's SHA1 matched
+against every file under
 `C:\Users\sergiom\Documents\TAS\firmware\PCem-ROMs` - which is how the wizard's
 Scan Folder does it, hash-first.
 
@@ -261,8 +289,10 @@ Scan Folder does it, hash-first.
 | `win95b_osr2` | `ga686bx/6BX.F2a`, `voodoo3_3000/3k12sd.rom` | both |
 | `winxp_sp3_home` | `ga686bx/6BX.F2a`, `voodoo3_3000/3k12sd.rom`, `awe32.raw` | all 3 |
 
-**Every preset is satisfiable.** The two Windows presets ask for exactly the
-three files the TASVideos Windows page names, and nothing else.
+**Every preset is satisfiable**, before and after the change - the boards were
+the same either way, so the table did not move, but it was run again rather
+than assumed. The two Windows presets ask for exactly the three files the
+TASVideos Windows page names, and nothing else.
 
 Two things this also settled:
 
@@ -279,7 +309,13 @@ Two things this also settled:
 
 Each preset resolved, its firmware mounted by hash, 9000 frames (90 s of
 emulated time), screenshot at the last frame. Nothing else in the slots except
-where noted.
+where noted. **Re-run after the board moved into `values["machine"]`**: the
+per-frame digest streams came back bit-identical to the first run, which is the
+evidence that the two resolvers picked the same board rather than an assurance
+that they had to.
+
+The composed `.cfg` says the board arrived: `model = deskpro386`,
+`model = pb570`, `model = ga686bx` for the other three.
 
 | preset | what happened | lit pixels |
 |---|---|---|
@@ -309,6 +345,10 @@ Measured, not argued. Rebuilt with `apply_cmos()` returning immediately and both
 runs repeated: the resulting screenshots are **byte-identical** to the working
 build's. So the CMOS the driver writes changes nothing on these two boards, and
 the stop is theirs.
+
+It also still holds with the board coming from the preset: the re-run's digest
+streams and lit-pixel counts are identical to the first run's, so nothing about
+moving `machine` into `values` landed a different board or a different POST.
 
 This is docs/CMOS.md's own named gap coming due - *"Only the IBM AT was tested.
 The other 50-odd AT-class machines were not [...] that is an argument, not a
@@ -361,7 +401,7 @@ Three legs in `waterbox/run-gate.sh`, taking it from 26 to 29.
 
 | Leg | What it asserts |
 |---|---|
-| the presets are legal | every `values` key is a declared setting; every value legal for its declared type, options and range; no preset touches the machine or renderer; ids unique; every `when[]` machine is one of the 93 declared; every preset's board is named in its label or description; the prose is ASCII |
+| the presets are legal | **every preset SETS the machine**, to one of the 93 boards this build declares, and names it in its label; every other `values` key is a declared setting; every value legal for its declared type, options and range; no preset touches the renderer, which the wizard skips in silence; no preset declares an inert `when[]`; ids unique; the prose is ASCII |
 | a misdeclared preset is caught | **negative control, run every time.** A copy of the declaration with one preset given a setting that does not exist and another given a string where the core declared an int |
 | every preset reaches the machine and boots | for each of the five: resolve it, mount its firmware by hash, and read `GetComposedConfig` - the `.cfg` PCem was actually handed - to check the values arrived; then run 9000 frames and require a picture at the end AND a picture that CHANGED during the run |
 
@@ -383,21 +423,67 @@ Two breaks, each built and run:
 |---|---|
 | `compose_device_sections()` commented out | *every preset reaches the machine and boots*: **18 problems across all five presets**, naming every device key that had gone missing - `soundCardAddress`, `oplEmulator`, `soundCardIrq`, `soundCardDma`, `videoMemory`, `voodooType`, `videoRenderThreads`. The boot half went on passing for four of the five |
 | a preset with an undeclared key and a string in an int | *a misdeclared preset is caught*, which is the permanent control above |
+| a preset with an undeclared key and one setting `renderer` | the FRONTEND probe of section 10, in the real wizard: both reported, `thereIsNoSuchSetting` and `renderer`, which is also an independent confirmation of which keys Apply really drops |
 
 One thing found while doing it, worth not rediscovering: at **2000** frames the
 Compaq Deskpro 386 is still counting memory and has 361 lit pixels, which trips
 the boot threshold. 9000 is not an arbitrary number.
 
-## 10. What is NOT established
+## 10. Driven through the REAL wizard, once
 
-- **No preset was driven through the wizard.** Everything here resolves the
-  preset the way `ApplySelectedPreset` does - defaults, then the values, minus
-  the machine and renderer - in Python, and runs the result. That is a
-  stand-in for the frontend (gates.md E): it cannot catch a frontend that
-  coerces a value differently, offers the presets in the wrong order, or fails
-  to re-evaluate `exposedWhen` after Apply. The frontend has its own tests for
-  that (`WizardPresetsTests`), against a synthetic package, not against this
-  one.
+The one thing the gate cannot do, because a frontend leg must not depend on a
+core package being installed. Done by hand on 2026-09-21 with a throwaway
+`[TestClass]` in `Chimera.Tests.Client.GUI`, which loaded THIS core's actual
+`waterbox.config` and `file_slots.json`, built a real `NewProjectWizard` under
+Xvfb, and for each preset called `SelectPreset(id)`, `ApplyPreset()` and
+`SettingValue(name)` for every key the preset sets. Deleted afterwards and the
+solution rebuilt without it.
+
+What it measured:
+
+```
+PROBE: MachineSetting=<null> Machines=0 Presets=5
+PROBE: offered=True names=[DOS, late 1980s - Compaq Deskpro 386 |
+       DOS, early 1990s - Packard Bell PB570 | DOS, late 1990s - Gigabyte GA-686BX |
+       Windows 95b OSR 2 - Gigabyte GA-686BX | Windows XP SP3 Home Edition - Gigabyte GA-686BX]
+PROBE: dos_late_80s applied, machine now deskpro386 - [386DX] Compaq Deskpro 386
+PROBE: dos_early_90s applied, machine now pb570 - [Socket 5] Packard Bell PB570
+PROBE: dos_late_90s applied, machine now ga686bx - [Slot 1] Gigabyte GA-686BX
+PROBE: win95b_osr2 applied, machine now ga686bx - [Slot 1] Gigabyte GA-686BX
+PROBE: winxp_sp3_home applied, machine now ga686bx - [Slot 1] Gigabyte GA-686BX
+```
+
+- `MachineSetting` is null and `Machines` is empty, in the running frontend, for
+  this package. That is the fact section 1 failed to check.
+- All five are offered, in declaration order, under the labels declared.
+- Every value of every preset - 29 distinct keys, `machine` among them - came
+  back from `SettingValue` equal to what the preset declares. Zero mismatches.
+
+**And it was watched failing**, because a probe that has only ever passed proves
+nothing. With `thereIsNoSuchSetting: 1` added to one preset and
+`renderer: "opengl"` to another, it reported exactly two problems and named
+both. That break is also the independent confirmation that `renderer` IS dropped
+and `machine` is NOT: the two keys went into the same run and only one of them
+came back missing.
+
+What the probe still does not cover: it drives the settings page only. It says
+nothing about the firmware page, the files page, or what a saved project
+records - and it ran on Mono under Xvfb, where the people who use Chimera run
+.NET Framework WinForms (gates.md E again, from the other direction).
+
+## 11. What is NOT established
+
+- **The gate still drives a Python stand-in, not the wizard.** Section 10
+  checked the stand-in against the real subject once, by hand, and that is
+  what settled the machine question - but the leg that runs on every gate is
+  still the stand-in, and it can drift from the frontend again. What would
+  stop that permanently is a frontend test over an installed core package,
+  which is a thing the frontend gate deliberately does not have. So the
+  standing risk is named rather than closed: **if `ApplySelectedPreset`
+  changes, nothing here notices.**
+- **The probe covered the settings page only**, on Mono under Xvfb. It says
+  nothing about the firmware page, the files page, what a saved project
+  records, or .NET Framework WinForms.
 - **No preset was booted into an operating system.** Three of the five reach
   DISK BOOT FAILURE with nothing in the slots, which is the right answer for an
   empty machine. Whether the Windows 95 preset installs Windows 95 is untested,

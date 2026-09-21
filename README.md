@@ -59,11 +59,13 @@ instruction, until he says otherwise.
   settings and every one stays editable. Nineteen new settings were added so
   that every row of the published tables is a thing a user can change - the
   sound card's address, IRQ, DMA and OPL implementation, the video card's
-  memory, the Voodoo's render threads and the rest. All five find their
+  memory, the Voodoo's render threads and the rest. Each preset names its
+  BOARD, which is the most important thing it says. All five find their
   firmware in Sergio's ROM folder, and all five reach a BIOS screen; two of
   them stop there for one keypress, for a CMOS reason that is the machine's and
   not the preset's. Time sync to the host clock is refused, and no preset pins
-  a disk geometry. Gate 29/29. `docs/PRESETS.md`.
+  a disk geometry. Gate 29/29, and the wizard itself was driven over this
+  package once by hand to check the stand-in the gate uses. `docs/PRESETS.md`.
 - M2 (the machine, native) continues.
 
 ## Building the M1a harness

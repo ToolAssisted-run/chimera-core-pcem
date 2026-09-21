@@ -36,10 +36,13 @@ def build_presets(labels):
     Four things about how these are built, all of them decisions with reasons
     written down in docs/PRESETS.md rather than guesses:
 
-      * A preset does NOT set the machine. The engine skips the machine setting
-        on Apply (NewProjectWizard.ApplySelectedPreset) because the machine is
-        asked on page one and decides which files the project takes. So each
-        label NAMES its board and the description says to pick it first.
+      * A preset DOES set the machine, and it is the most important thing it
+        says - "Packard Bell PB570" IS the preset. ApplySelectedPreset skips
+        `_cfg.MachineSetting`, but that is the DECLARED machine chooser that
+        goes with a machines[] array, and this package declares neither: with
+        machineSetting null the comparison is against null and `machine` is an
+        ordinary setting like any other. There is no page-one machine question
+        here to be downstream of.
       * There is no TIME SYNC value. Both Windows tables say "enabled to host
         clock"; a core that reads the host clock is not deterministic, which is
         Chimera issue #120, and the driver already pins enable_sync = 0.
@@ -56,7 +59,13 @@ def build_presets(labels):
 
     Every value below is one the source table names, or a fact about the CPU
     the table names (its coprocessor, and whether PCem's own dialog would force
-    the recompiler on for it - wx-config.c:791-797)."""
+    the recompiler on for it - wx-config.c:791-797).
+
+    There is deliberately no `when[]`. It gates a preset by MachineConfig, and
+    with no machines[] declared there is no MachineConfig, so every when[] here
+    would be inert - and an inert declaration that looks load-bearing is a trap
+    for whoever reads this next. The board lives in values["machine"], where it
+    does something."""
     m = labels["machine"]
     v = labels["videoCard"]
     s = labels["soundCard"]
@@ -86,11 +95,10 @@ def build_presets(labels):
         {
             "id": "dos_late_80s",
             "label": "DOS, late 1980s - Compaq Deskpro 386",
-            "description": "A 20 MHz 386DX with VGA and a Sound Blaster Pro, for DOS "
-                           "games released up to the end of 1989. Pick the machine "
-                           "\"[386DX] Compaq Deskpro 386\" on the first page.",
-            "when": [m["deskpro386"]],
+            "description": "A 20 MHz 386DX with VGA and a Sound Blaster Pro v2, for DOS "
+                           "games released up to the end of 1989.",
             "values": dict(common(24), **{
+                "machine": m["deskpro386"],
                 "cpu": "i386DX/20",
                 "fpu": "none",
                 "dynarec": False,
@@ -107,10 +115,9 @@ def build_presets(labels):
             "id": "dos_early_90s",
             "label": "DOS, early 1990s - Packard Bell PB570",
             "description": "A Pentium 133 with the board's own Cirrus Logic video and a "
-                           "Sound Blaster 16, for DOS games released 1990 to 1994. Pick "
-                           "the machine \"[Socket 5] Packard Bell PB570\" first.",
-            "when": [m["pb570"]],
+                           "Sound Blaster 16, for DOS games released 1990 to 1994.",
             "values": dict(common(24), **{
+                "machine": m["pb570"],
                 "cpu": "Pentium 133",
                 "fpu": "builtin",
                 "dynarec": True,
@@ -126,10 +133,9 @@ def build_presets(labels):
             "id": "dos_late_90s",
             "label": "DOS, late 1990s - Gigabyte GA-686BX",
             "description": "A Pentium II/450 with an S3 Trio64 and a real Voodoo "
-                           "Graphics beside it, for DOS games released from 1995 on. "
-                           "Pick the machine \"[Slot 1] Gigabyte GA-686BX\" first.",
-            "when": [m["ga686bx"]],
+                           "Graphics beside it, for DOS games released from 1995 on.",
             "values": dict(common(72, cd_channel=3), **{
+                "machine": m["ga686bx"],
                 "cpu": "Pentium II/450",
                 "fpu": "builtin",
                 "dynarec": True,
@@ -146,10 +152,9 @@ def build_presets(labels):
             "id": "win95b_osr2",
             "label": "Windows 95b OSR 2 - Gigabyte GA-686BX",
             "description": "A Pentium II/233 with 256 MB and a Voodoo 3 3000, the "
-                           "machine TASVideos install Windows 95 OSR 2 on. Pick the "
-                           "machine \"[Slot 1] Gigabyte GA-686BX\" first.",
-            "when": [m["ga686bx"]],
+                           "machine TASVideos install Windows 95 OSR 2 on.",
             "values": dict(common(72), **{
+                "machine": m["ga686bx"],
                 "cpu": "Pentium II/233",
                 "fpu": "builtin",
                 "dynarec": True,
@@ -166,10 +171,9 @@ def build_presets(labels):
             "id": "winxp_sp3_home",
             "label": "Windows XP SP3 Home Edition - Gigabyte GA-686BX",
             "description": "A Pentium II/450 with 256 MB, a Voodoo 3 3000 and an AWE32, "
-                           "the machine TASVideos install Windows XP on. Pick the "
-                           "machine \"[Slot 1] Gigabyte GA-686BX\" first.",
-            "when": [m["ga686bx"]],
+                           "the machine TASVideos install Windows XP on.",
             "values": dict(common(72), **{
+                "machine": m["ga686bx"],
                 "cpu": "Pentium II/450",
                 "fpu": "builtin",
                 "dynarec": True,

@@ -36,7 +36,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-SKIPPED_BY_THE_WIZARD = ("machine", "renderer")
+# Only the renderer. `machine` is NOT skipped by the wizard for this package -
+# ApplySelectedPreset skips `_cfg.MachineSetting`, the declared machine chooser
+# that goes with a machines[] array, and this package declares neither.
+SKIPPED_BY_THE_WIZARD = ("renderer",)
 
 # PCem's video_speed is an index, -1 for "leave it to the card".
 VIDEO_SPEEDS = ["default", "8-bit 8MHz", "16-bit 8MHz", "16-bit 12MHz",
@@ -49,6 +52,10 @@ VIDEO_SPEEDS = ["default", "8-bit 8MHz", "16-bit 8MHz", "16-bit 12MHz",
 # subject (gates.md E).
 BARE = lambda v: str(v).split(" - ", 1)[0]
 GLOBAL_KEYS = {
+    # The board the preset builds, and the first thing to check: it decides the
+    # BIOS, and therefore the firmware the project asks for and every timing in
+    # the machine.
+    "machine":       ("model", BARE),
     "fpu":           ("fpu", str),
     "dynarec":       ("cpu_use_dynarec", lambda v: "1" if v else "0"),
     "cpuWaitStates": ("cpu_waitstates", str),
@@ -109,10 +116,9 @@ def resolve(cfg, preset):
            if s.get("name") and "default" in s}
     out.update({k: v for k, v in preset["values"].items()
                 if k not in SKIPPED_BY_THE_WIZARD})
-    # A preset cannot set the machine (the wizard skips it), so the machine it
-    # is FOR comes from when[]. A preset with no when[] cannot be run at all,
-    # which is itself worth failing on.
-    out["machine"] = preset["when"][0]
+    # The board comes from the preset's own values, like everything else -
+    # nothing here supplies one, so a preset that does not name a board runs on
+    # the declared default and check-presets.py fails it.
     return out
 
 

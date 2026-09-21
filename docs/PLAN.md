@@ -948,11 +948,18 @@ right and wrong:
 - **Advantages 3 and 4 survive intact.** The firmware page is two lines - all
   five presets' requirements are satisfied by Sergio's ROM folder, measured -
   and "custom" is simply not applying a preset.
-- **6.2's UNCHECKED item is answered.** `ApplySelectedPreset` writes the values
-  into the settings on the click and re-asks the exposed set afterwards, so
-  there are no cached narrowed declarations to go stale. It also SILENTLY skips
-  the machine setting, which is the one thing a PCem preset most wants to set;
-  PRESETS.md section 1 has what was done about that.
+- **6.2's UNCHECKED item is answered, and answered by RUNNING the wizard.**
+  `ApplySelectedPreset` writes the values into the settings on the click and
+  re-asks the exposed set afterwards, so there are no cached narrowed
+  declarations to go stale. And the machine IS a preset's to set here: the key
+  that line skips is `_cfg.MachineSetting`, the declared machine chooser that
+  goes with a `machines[]` array, and this package declares neither - measured
+  in the running frontend as `MachineSetting=<null> Machines=0`. The first
+  version of this work believed otherwise, left `machine` out of all five
+  presets, and checked the belief with a Python stand-in written from the same
+  sentence - gates.md mode E, and the cheapest kind, because a stand-in written
+  from the claim cannot disagree with it. PRESETS.md sections 1 and 10 have the
+  mistake and the measurement that settled it.
 - **The disk geometries in 6.1's table are deliberately NOT pinned by any
   preset.** `hddGeometry` "Auto" now derives the geometry from the image the
   user supplies (docs/HDD.md section 3), and a preset that pinned 17/15/900
@@ -971,6 +978,15 @@ right and wrong:
   POST prompt, and it is `docs/CMOS.md`'s own "only the IBM AT was tested" gap
   rather than anything the presets did: rebuilding with `apply_cmos()` disabled
   gives byte-identical screenshots. One keypress gets both to a running game.
+- **The gate leg that reads the composed .cfg rather than the screen is the
+  load-bearing one**, and it is worth saying why in the plan and not only in
+  PRESETS.md. A per-device value the driver drops leaves PCem's own default in
+  place, so the machine boots, the picture looks right and every digest matches
+  - the default IS what this core did before these settings existed. With
+  `compose_device_sections()` commented out, the boot half of that leg went on
+  passing for four of the five presets while the .cfg half reported 18 problems
+  and named every key that had gone missing. A boot leg alone could not have
+  failed for the thing most likely to break.
 
 ---
 

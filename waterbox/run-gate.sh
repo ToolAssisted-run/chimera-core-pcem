@@ -95,15 +95,22 @@ else
 	report FAIL "the presets are legal" "$(grep -m1 BAD "$work/presets.log")"
 fi
 
-# NEGATIVE CONTROL, run every time rather than described: a preset that names a
-# setting this core does not have, and one that puts a string where the core
-# declared an int. Both are silent in the frontend, which is the whole reason
-# the check exists, so a check that cannot see them is worth nothing.
+# NEGATIVE CONTROL, run every time rather than described. Three breaks, one per
+# rule that has ever been got wrong here:
+#
+#   * a preset that names a setting this core does not have - the frontend
+#     drops it and only whispers on a status line;
+#   * a preset that puts a string where the core declared an int;
+#   * a preset that does not name its BOARD. That is the most important thing a
+#     preset says, and the first version of this work left it out of all five
+#     on a misreading of ApplySelectedPreset - so this is the rule most in need
+#     of a control, not least.
 python3 - "$here/waterbox.config" "$work/presets-broken.config" <<'PRESETBREAK'
 import json, sys
 cfg = json.loads(open(sys.argv[1]).read())
 cfg["presets"][0]["values"]["thereIsNoSuchSetting"] = 1
 cfg["presets"][1]["values"]["memSizeKB"] = "eight megabytes"
+cfg["presets"][2]["values"].pop("machine", None)
 open(sys.argv[2], "w").write(json.dumps(cfg))
 PRESETBREAK
 if python3 "$root/tools/check-presets.py" "$work/presets-broken.config" \

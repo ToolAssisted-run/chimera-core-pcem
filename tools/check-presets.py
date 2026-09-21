@@ -13,15 +13,39 @@ failing:
 
   1. every key in values[] is a declared setting - the frontend drops the rest;
   2. every value is legal for that setting's declared type, options and range;
-  3. no preset touches the MACHINE or renderer setting, which the wizard skips
-     silently (NewProjectWizard.ApplySelectedPreset) - a machine written there
-     is not merely ignored, it is ignored with no message at all;
+  3. every preset SETS THE MACHINE, and to one of the 93 boards this build of
+     PCem declares. The board IS the preset - "Packard Bell PB570" is the whole
+     point of picking one - and a preset that leaves it alone silently builds
+     its CPU, video card and sound card on top of whatever board happened to be
+     selected, which is at best a machine nobody asked for and at worst a load
+     refused for a CPU the board does not take;
   4. every id is unique, and every id and label is non-empty;
-  5. every machine named in when[] is a declared option of the machine setting,
-     so a preset cannot belong to a board this build of PCem does not have;
-  6. the machine a preset is FOR is named in its label, because the wizard
-     cannot set the machine and the user has to pick it on page one;
+  5. no preset declares when[] while the package declares no machines[]. when[]
+     gates a preset by MachineConfig; with no machines[] there is no
+     MachineConfig, AppliesTo(null) is true and every preset is offered
+     regardless. An inert declaration that reads as load-bearing is worse than
+     no declaration;
+  6. the board a preset builds is named in its label, because the label is all
+     the selector shows and five presets that do not say which machine they are
+     cannot be chosen between;
   7. the prose is ASCII, like the rest of this repo's prose.
+
+A note on 3, because it was got WRONG here first and the way it went wrong is
+worth keeping. ApplySelectedPreset does skip a key:
+
+    if (pair.Key == RendererSetting || pair.Key == _cfg.MachineSetting) continue;
+
+but `_cfg.MachineSetting` is the package's DECLARED machine chooser, the one
+that goes with a machines[] array, and this package declares neither - so it is
+null, "machine" never equals it, and `machine` is an ordinary setting the
+wizard writes like any other. The first version of this file read that line
+together with project.md's prose ("the machine setting and the renderer are not
+a preset's to move"), believed it without checking what MachineSetting was for
+THIS package, and then enforced the belief - and the Python stand-in that was
+supposed to check the work was written from the same sentence, so it could not
+disagree. That is gates.md mode E exactly. The frontend is the subject; a
+stand-in for it has to be checked against it at least once, which
+docs/PRESETS.md section 11 now records being done.
 
 usage: check-presets.py <waterbox.config>
        check-presets.py <waterbox.config> --emit <preset id> <out settings.json>
@@ -35,10 +59,15 @@ import json
 import sys
 from pathlib import Path
 
-# The wizard skips these two on Apply, without a word: the machine is asked on
-# page one because it decides which files the project takes, and the renderer
-# belongs to the session rather than the machine.
-SKIPPED_BY_THE_WIZARD = ("machine", "renderer")
+# What ApplySelectedPreset skips on Apply, without a word. RendererSetting is
+# the literal "renderer"; the other is `_cfg.MachineSetting`, the package's
+# declared machine chooser, which this package does not declare - so `machine`
+# is NOT skipped here and is not in this tuple. See the note in the docstring.
+SKIPPED_BY_THE_WIZARD = ("renderer",)
+
+# The setting that names the board. Not special to the frontend - it is an
+# ordinary enum - but special to a preset, which is worthless without it.
+MACHINE_SETTING = "machine"
 
 
 def declared(cfg):
@@ -101,6 +130,11 @@ def check(cfg):
             if any(ord(c) > 126 for c in text):
                 bad.append(f"{where}: {field} is not ASCII")
 
+        if p.get("when") is not None and not cfg.get("machines"):
+            bad.append(f"{where} declares when[], which gates a preset by "
+                       f"MachineConfig - but this package declares no machines[], "
+                       f"so there is no MachineConfig and every preset is offered "
+                       f"regardless. It would read as load-bearing and do nothing")
         for mv in p.get("when") or []:
             if machine is None:
                 bad.append(f"{where} has a when[] but there is no machine setting")
@@ -108,22 +142,29 @@ def check(cfg):
                 bad.append(f"{where} is for machine {mv!r}, which this core does "
                            f"not declare")
 
-        # The machine a preset is for has to be findable by a person, because
-        # the wizard cannot apply it. The board's display name is in the
-        # machine option after the " - ", and that is what the label must carry.
-        for mv in p.get("when") or []:
-            if mv in machine_opts:
-                board = mv.split(" - ", 1)[-1]
-                # "[Slot 1] Gigabyte GA-686BX" -> "Gigabyte GA-686BX"
-                plain = board.split("] ", 1)[-1]
-                if plain not in (label or "") and plain not in (p.get("description") or ""):
-                    bad.append(f"{where} is for {plain!r} but neither its label nor "
-                               f"its description names it - and the wizard cannot "
-                               f"set the machine, so the user has to know which")
-
         values = p.get("values") or {}
         if not values:
             bad.append(f"{where} sets nothing")
+
+        # THE BOARD. A preset that does not name one builds a CPU, a video card
+        # and a sound card on top of whatever machine happened to be selected.
+        board_value = values.get(MACHINE_SETTING)
+        if machine is None:
+            bad.append(f"{where}: there is no {MACHINE_SETTING!r} setting to set")
+        elif board_value is None:
+            bad.append(f"{where} does not set {MACHINE_SETTING!r}. The board IS the "
+                       f"preset; without it the rest lands on whatever machine was "
+                       f"already chosen")
+        elif board_value not in machine_opts:
+            bad.append(f"{where} builds machine {board_value!r}, which is not one of "
+                       f"the {len(machine_opts)} boards this core declares")
+        else:
+            # "ga686bx - [Slot 1] Gigabyte GA-686BX" -> "Gigabyte GA-686BX"
+            plain = board_value.split(" - ", 1)[-1].split("] ", 1)[-1]
+            if plain not in (label or ""):
+                bad.append(f"{where} builds {plain!r} but its label does not say so - "
+                           f"and the label is all the selector shows")
+
         for key, value in values.items():
             if key in SKIPPED_BY_THE_WIZARD:
                 bad.append(f"{where} sets {key!r}, which the wizard skips in "
