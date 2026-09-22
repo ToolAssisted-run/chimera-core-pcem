@@ -640,6 +640,8 @@ def main():
             "axes": [
                 {"name": "Mouse X", "min": -128, "max": 127, "neutral": 0},
                 {"name": "Mouse Y", "min": -128, "max": 127, "neutral": 0},
+                {"name": "Mouse Position X", "min": 0, "max": 65535, "neutral": 32768},
+                {"name": "Mouse Position Y", "min": 0, "max": 65535, "neutral": 32768},
                 {"name": "Joystick 1 X", "min": 0, "max": 65535, "neutral": 32767},
                 {"name": "Joystick 1 Y", "min": 0, "max": 65535, "neutral": 32767},
                 {"name": "Joystick 2 X", "min": 0, "max": 65535, "neutral": 32767},

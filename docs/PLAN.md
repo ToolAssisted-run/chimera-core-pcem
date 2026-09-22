@@ -417,6 +417,67 @@ position/speed axes, and the disk-swap buttons that replace the fork's
 the same `SetButton` wide-input channel DOSBox-X needed; that work is
 already done in the engine.
 
+#### The mouse: absolute in, relative out (2026-09-22)
+
+`Mouse Position X/Y` is `0..65535` neutral `32768`, a point on the guest's
+screen as a fraction of it - the one convention every Chimera core uses
+(chimera `docs/porting-a-core.md`). `Mouse X/Y` stays beside it, relative,
+in mickeys.
+
+**PCem has no absolute pointing device to give a position to.** Its whole
+mouse list (`extern/pcem/src/mouse.c:9-18`) is two serial mice (Microsoft,
+Mouse Systems), two PS/2 mice (2-button, Intellimouse) and two
+machine-integrated ones (Amstrad, Olivetti M24), every one of them
+relative; there is no VMware backdoor, tablet or equivalent anywhere in
+the tree to put an absolute one behind. So a position is turned into the
+movement that would reach it and handed to the relative stream: the
+guest's own driver still owns the cursor.
+
+That is **open loop**, and it is worth being plain about the cost. If the
+guest applies pointer acceleration, clamps at a screen edge, or warps the
+cursor itself, its idea of where the pointer is drifts from ours and
+nothing here can measure the difference. Placing a pointer for real needs
+a device PCem does not emulate - a VMware-style backdoor port is the
+obvious candidate, since guest drivers for it already exist, and that is
+its own piece of work.
+
+Two things about the conversion can be wrong while everything else stays
+green, so both are checked directly:
+
+- The difference is taken in **pixels**, not in wire units. One wire unit
+  is about a hundredth of a pixel at 640 wide, so differencing the wire
+  would hand the mouse about a hundredfold too much movement, and the
+  machine would still run and still look alive.
+- **A jump bigger than one mouse report is kept, not dropped.** A mouse
+  reports in bytes - `mouse_serial.c:28-31` clamps a report to -128..127,
+  `mouse_ps2.c:190-197` clamps its accumulator to -256..255 - and whatever
+  is over the edge is simply gone. That is right for a hand on a desk and
+  wrong for a movie that asks the pointer to cross the screen. So each
+  poll takes at most what a report carries and the rest waits;
+  `pollmouse` runs every other millisecond of emulated time (`pc.c:533`),
+  so a screen-wide jump lands in about six polls, well inside one frame,
+  and arrives exactly.
+
+Gate legs: `the mouse arithmetic` builds `waterbox/tests/test-input.c`
+against `pcem-input.c` and checks the sums against values worked out from
+the declaration (32768 is pixel 320 of 640 and pixel 160 of 320; the
+vertical axis uses the height; a held position is still; a 639-pixel jump
+arrives in full and takes more than one report). `the axis wire matches
+the driver` (`tools/check-axes.py`) cross-checks waterbox.config's axis
+order against `PCEM_AXIS_*` - insert an axis and forget the enum and every
+axis after it silently means something else - and enforces the 0..65535
+rule for anything named like a screen position. `the position axis
+reaches the machine` hashes the whole savestate rather than the frame,
+because a mouse packet sitting in a controller's buffer with no guest
+driver to read it changes the machine and draws nothing.
+
+Negative controls, all run and reverted: differencing the wire (4 checks
+red, e.g. 32767 where 319 was wanted); using the width for the vertical
+axis (1 red, 319 where 239 was wanted); dropping the remainder instead of
+keeping it (a screen-wide jump arrived as 127 of 639, the pointer stopping
+four fifths short); a position axis declared 0..2560; and an axis inserted
+without the enum (8 red, naming every axis that shifted).
+
 ### 4.6 Video and audio declaration
 
 - Video: buffer capacity 2048x2048 (the size of `buffer32`), live size

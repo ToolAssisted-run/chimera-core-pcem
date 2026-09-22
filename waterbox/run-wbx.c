@@ -132,6 +132,8 @@ int main(int argc, char **argv)
         long stateAt = -1, stateEvery = 0;
         long shotFrame = -1, pressAt[32];
         int pressBtn[32], nPress = 0;
+        long axisAt[16]; int axisIdx[16], axisVal[16], nAxis = 0;
+        int stateHash = 0;
         const char *shotPath = NULL;
         mb_return r;
         mb_host *h;
@@ -170,6 +172,27 @@ int main(int argc, char **argv)
                         if (eq) { *eq = 0; pressAt[nPress] = atol(spec);
                                   pressBtn[nPress] = atoi(eq + 1); nPress++; }
                 }
+                else if (!strcmp(argv[i], "--axis") && i + 1 < argc && nAxis < 16) {
+                        /* [<frame>:]<axis index>=<value>, held from that frame
+                         * on. A POSITION axis only moves the machine when it
+                         * CHANGES - the first frame deliberately places nothing
+                         * - so a leg that wants movement asks for a frame. */
+                        char *spec = argv[++i], *eq = strchr(spec, '='), *colon = strchr(spec, ':');
+                        if (eq) {
+                                *eq = 0;
+                                if (colon && colon < eq) {
+                                        *colon = 0;
+                                        axisAt[nAxis] = atol(spec);
+                                        axisIdx[nAxis] = atoi(colon + 1);
+                                } else {
+                                        axisAt[nAxis] = 0;
+                                        axisIdx[nAxis] = atoi(spec);
+                                }
+                                axisVal[nAxis] = atoi(eq + 1);
+                                nAxis++;
+                        }
+                }
+                else if (!strcmp(argv[i], "--state-hash")) stateHash = 1;
                 else if (!strcmp(argv[i], "--shot") && i + 1 < argc) {
                         char *spec = argv[++i], *eq = strchr(spec, '=');
                         if (eq) { *eq = 0; shotFrame = atol(spec); shotPath = eq + 1; }
@@ -250,6 +273,7 @@ int main(int argc, char **argv)
                 intfn W = (intfn)proc(h, "GetVideoWidth", 1);
                 intfn H = (intfn)proc(h, "GetVideoHeight", 1);
                 intfn Samples = (intfn)proc(h, "GetAudioSampleCount", 1);
+                setfn SetAxis = (setfn)proc(h, "SetAxis", nAxis > 0);
                 uint64_t stream = 1469598103934665603ULL;
                 long n, audioTotal = 0;
                 double t0 = now_s(), wall;
@@ -263,6 +287,8 @@ int main(int argc, char **argv)
                                 if (n == pressAt[k]) SetButton(pressBtn[k], 1);
                                 if (n == pressAt[k] + 8) SetButton(pressBtn[k], 0);
                         }
+                        for (k = 0; k < nAxis; k++)
+                                if (n >= axisAt[k]) SetAxis(axisIdx[k], axisVal[k]);
                         if (stateAt >= 0 && n == stateAt) {
                                 diskAtSave = disk_hash(h);
                                 wbx_save_state(h, mem_write, (uintptr_t)&st, &r);
@@ -317,6 +343,23 @@ int main(int argc, char **argv)
                                        n, (unsigned long long)dg, W(), H());
                 }
                 wall = now_s() - t0;
+
+                /* THE WHOLE MACHINE, hashed. A frame digest is the picture,
+                 * and some input never reaches the picture: a mouse packet
+                 * sitting in a controller's buffer with no guest driver to
+                 * read it changes the machine and draws nothing. This is what
+                 * says that input arrived at all. */
+                if (stateHash) {
+                        membuf sh = {0};
+                        uint64_t hv = 1469598103934665603ULL;
+                        size_t b;
+                        wbx_save_state(h, mem_write, (uintptr_t)&sh, &r);
+                        die(&r, "save_state");
+                        for (b = 0; b < sh.len; b++) { hv ^= sh.p[b]; hv *= 1099511628211ULL; }
+                        printf("STATEHASH %016llx bytes=%zu\n",
+                               (unsigned long long)hv, sh.len);
+                        free(sh.p);
+                }
 
                 /* THE DISK IS MACHINE STATE, and this is what proves it: the
                  * disk as it stood when the state was taken, the disk at the

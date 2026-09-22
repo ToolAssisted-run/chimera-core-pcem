@@ -207,10 +207,14 @@ void mouse_poll_host(void) {}
 void keyboard_poll_host(void) { g_inputRead = 1; }
 
 static int g_mouseDx, g_mouseDy, g_mouseDz;
+
+/* What a report can carry is kept, and the rest waits: pcem_take_report in
+ * pcem-driver.h says why. */
 void mouse_get_mickeys(int *x, int *y, int *z)
 {
-        *x = g_mouseDx; *y = g_mouseDy; *z = g_mouseDz;
-        g_mouseDx = g_mouseDy = g_mouseDz = 0;
+        *x = pcem_take_report(&g_mouseDx);
+        *y = pcem_take_report(&g_mouseDy);
+        *z = pcem_take_report(&g_mouseDz);
         g_inputRead = 1;
 }
 
@@ -983,7 +987,8 @@ ECL_EXPORT void SetButton(int32_t index, int32_t state)
 
 ECL_EXPORT void SetAxis(int32_t index, int32_t value)
 {
-        pcem_driver_set_axis(index, value, &g_mouseDx, &g_mouseDy, &g_mouseDz);
+        pcem_driver_set_axis(index, value, &g_mouseDx, &g_mouseDy, &g_mouseDz,
+                             g_width, g_height);
 }
 
 ECL_EXPORT void FrameAdvance(uint64_t packed)

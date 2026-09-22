@@ -132,7 +132,10 @@ frames=1500
 python3 - "$work/movie.txt" "$frames" <<'PY'
 import sys
 out, n = sys.argv[1], int(sys.argv[2])
-line = "|" + "    0," * 6 + "." * 110 + "|\n"
+# eight axes now: two relative mouse, two absolute mouse POSITION, four
+# joystick. A position of zero is the left edge, and since it never changes
+# and the first frame deliberately places nothing, this movie moves no mouse.
+line = "|" + "    0," * 8 + "." * 110 + "|\n"
 open(out, "w").write(line * n)
 PY
 
@@ -194,6 +197,54 @@ if [ -n "$s3" ] && [ "$s3" != "$s1" ]; then
 	report PASS "the stream notices a slower CPU" "negative control"
 else
 	report FAIL "the stream notices a slower CPU" "it did not - the leg is blind"
+fi
+
+# ------------------------------------------- 3b. the mouse, and its units
+# PCem has NO absolute pointing device - its whole mouse list is two serial,
+# two PS/2 and two machine-integrated mice, every one relative - so an absolute
+# position is turned into the movement that would reach it. Two things about
+# that can be wrong while every other leg here stays green: the difference
+# could be taken in wire units instead of pixels (a hundredfold too much
+# movement, and the machine still runs), and a jump bigger than one mouse
+# report could be truncated (the pointer stops short, and nothing says so).
+# Both are arithmetic, so they are checked as arithmetic.
+if python3 "$root/tools/check-axes.py" "$here/waterbox.config" \
+   "$here/pcem-driver.h" > "$work/axes.log" 2>&1; then
+	report PASS "the axis wire matches the driver" "$(tail -1 "$work/axes.log")"
+else
+	report FAIL "the axis wire matches the driver" "$(cat "$work/axes.log")"
+fi
+
+if cc -O1 -Wall -Wextra -o "$work/test-input" "$here/tests/test-input.c" \
+   "$here/pcem-input.c" > "$work/test-input.log" 2>&1 \
+   && "$work/test-input" >> "$work/test-input.log" 2>&1; then
+	report PASS "the mouse arithmetic" "$(tail -1 "$work/test-input.log")"
+else
+	report FAIL "the mouse arithmetic" "$(tail -3 "$work/test-input.log")"
+fi
+
+# AND IT REACHES THE MACHINE. The arithmetic above is a pure function; this is
+# the wire. A frame digest cannot see it - a mouse packet sitting in a
+# controller's buffer with no guest driver to read it changes the machine and
+# draws nothing - so the whole state is hashed instead.
+statehash() {
+	"$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$gw" 400 \
+		--state-hash "$@" 2>/dev/null | sed -n 's/^STATEHASH \([0-9a-f]*\).*/\1/p'
+}
+mqu="$(statehash)"
+mpos="$(statehash --axis 200:2=65535)"
+mpos2="$(statehash --axis 200:2=65535)"
+mrel="$(statehash --axis 200:0=100)"
+if [ -z "$mqu" ] || [ -z "$mpos" ]; then
+	report FAIL "the position axis reaches the machine" "a run produced no state hash"
+elif [ "$mpos" = "$mqu" ]; then
+	report FAIL "the position axis reaches the machine" "moving it changed nothing"
+elif [ "$mpos" != "$mpos2" ]; then
+	report FAIL "the position axis reaches the machine" "not deterministic: $mpos vs $mpos2"
+elif [ "$mpos" = "$mrel" ]; then
+	report FAIL "the position axis reaches the machine" "indistinguishable from the relative axis"
+else
+	report PASS "the position axis reaches the machine" "and is deterministic"
 fi
 
 # ----------------------------------------- 4. the declared options are real

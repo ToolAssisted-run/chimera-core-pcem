@@ -123,7 +123,43 @@ void pcem_driver_apply_input(void)
         mouse_buttons = mb;
 }
 
-void pcem_driver_set_axis(int index, int value, int *dx, int *dy, int *dz)
+/* Where the position axes last pointed, in PIXELS, or -1 for "not yet". These
+ * are ordinary guest memory, so a savestate carries them the way it carries
+ * everything else the machine was told. */
+static int g_lastPosPxX = -1, g_lastPosPxY = -1;
+
+/* An absolute position, turned into the movement that would reach it.
+ *
+ * PCem has NO ABSOLUTE POINTING DEVICE to hand a position to. Its whole mouse
+ * list (extern/pcem/src/mouse.c) is two serial mice, two PS/2 mice and two
+ * machine-integrated ones, every one of them relative, and there is no
+ * hypervisor backdoor in the tree to put an absolute one behind - no VMware
+ * port, no tablet, nothing. So a position is steered towards, not placed at:
+ * the guest's own driver still owns the cursor.
+ *
+ * That makes it OPEN LOOP, and it is worth being plain about what that costs.
+ * If the guest applies pointer acceleration, clamps at a screen edge, or warps
+ * the cursor itself, its idea of where the pointer is drifts from this one and
+ * nothing here can measure the difference. Placing a pointer for real needs a
+ * device PCem does not emulate; this gives targeting by feel, which is what a
+ * DOS or Windows guest could offer a person with a real mouse anyway.
+ *
+ * The difference is taken in PIXELS, not in wire units. One wire unit is about
+ * a hundredth of a pixel at 640 wide, so differencing the wire would hand the
+ * mouse numbers about a hundredfold too large.
+ */
+static int position_delta(int value, int screen, int *last)
+{
+        int px, moved;
+        if (screen <= 0) return 0;
+        px = (int)(((long long)value * screen) / 65536);
+        moved = *last < 0 ? 0 : px - *last;   /* the first frame places nothing */
+        *last = px;
+        return moved;
+}
+
+void pcem_driver_set_axis(int index, int value, int *dx, int *dy, int *dz,
+                          int screenW, int screenH)
 {
         (void)dz;
         /* The mouse is relative: the axis carries this frame's movement in
@@ -131,6 +167,8 @@ void pcem_driver_set_axis(int index, int value, int *dx, int *dy, int *dz)
         switch (index) {
         case PCEM_AXIS_MOUSE_X: *dx += value; break;
         case PCEM_AXIS_MOUSE_Y: *dy += value; break;
+        case PCEM_AXIS_MOUSE_POS_X: *dx += position_delta(value, screenW, &g_lastPosPxX); break;
+        case PCEM_AXIS_MOUSE_POS_Y: *dy += position_delta(value, screenH, &g_lastPosPxY); break;
         default: break;
         }
 }
