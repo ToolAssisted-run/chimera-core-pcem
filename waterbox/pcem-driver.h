@@ -78,6 +78,7 @@ void pcem_driver_set_button(int index, int state);
 void pcem_driver_set_packed(int index, int state);
 void pcem_driver_set_axis(int index, int value, int *dx, int *dy, int *dz,
                           int screenW, int screenH);
+void pcem_driver_clear_axis_frame(void);
 void pcem_driver_apply_input(void);
 
 #endif

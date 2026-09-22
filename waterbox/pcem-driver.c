@@ -1000,6 +1000,11 @@ ECL_EXPORT void FrameAdvance(uint64_t packed)
         g_inputRead = 0;
         g_audioSamples = 0;
         runpc(g_frameMs);
+        /* The relative axes are spent: the next frame's SetAxis calls decide
+         * again whether they or the position drive the mouse. Cleared AFTER
+         * the frame rather than before it, because SetAxis runs before
+         * FrameAdvance and clearing there would erase what it just said. */
+        pcem_driver_clear_axis_frame();
 }
 
 /* Recorded for diagnostics; see driver_blit for why it does not gate the

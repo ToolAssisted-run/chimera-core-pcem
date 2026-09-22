@@ -108,6 +108,54 @@ int main(void)
         eq("a small move is one report", drain(&dx, &reports), 7);
         eq("exactly one", reports, 1);
 
+        /* A RELATIVE AXIS WINS, and the position still keeps its place.
+         *
+         * Both are bound by default, so both arrive every frame. Added
+         * together they double every movement; and if the position skipped
+         * remembering where it was while the relative axis drove, the next
+         * frame to fall back on it would measure from a stale pixel and jump.
+         * A frame is SetAxis for every axis, then FrameAdvance, then the
+         * clear - which is the order below. */
+        pcem_driver_clear_axis_frame();
+        dx = 0;
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_POS_X, 0, &dx, &dy, &dz, W, H);   /* settle at pixel 0 */
+        pcem_driver_clear_axis_frame();
+
+        /* frame: the relative axis says +5, and the position jumps half a
+         * screen. Only the 5 may reach the machine. */
+        dx = 0;
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_X, 5, &dx, &dy, &dz, W, H);
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_POS_X, 32768, &dx, &dy, &dz, W, H);
+        eq("a relative axis wins over the position", dx, 5);
+        pcem_driver_clear_axis_frame();
+
+        /* next frame: nothing relative, and the position has not moved since.
+         * It must be STILL - a position that forgot where it was would now
+         * report the whole jump it was told to ignore. */
+        dx = 0;
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_POS_X, 32768, &dx, &dy, &dz, W, H);
+        eq("the position kept its place while the relative axis drove", dx, 0);
+        pcem_driver_clear_axis_frame();
+
+        /* and it measures from there: one pixel on from 320 is one pixel */
+        dx = 0;
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_POS_X, 32768 + 103, &dx, &dy, &dz, W, H);
+        eq("and carries on from there", dx, 1);
+        pcem_driver_clear_axis_frame();
+
+        /* the two directions are independent: X relative, Y absolute, at once */
+        dx = 0; dy = 0;
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_Y, 0, &dx, &dy, &dz, W, H);
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_POS_Y, 0, &dx, &dy, &dz, W, H);
+        pcem_driver_clear_axis_frame();
+        dx = 0; dy = 0;
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_X, 7, &dx, &dy, &dz, W, H);
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_POS_X, 65535, &dx, &dy, &dz, W, H);
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_POS_Y, 32768, &dx, &dy, &dz, W, H);
+        eq("X took the relative value", dx, 7);
+        eq("Y took the position, in the same frame", dy, 240);
+        pcem_driver_clear_axis_frame();
+
         if (failures) { printf("test-input: %d failure(s)\n", failures); return 1; }
         printf("test-input: all checks passed\n");
         return 0;

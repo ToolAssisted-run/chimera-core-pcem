@@ -1,10 +1,11 @@
 {
   "_comment": [
     "A PC keyboard binds to the host's same key, which is what anyone typing",
-    "into DOS or Windows expects. The mouse POSITION binds to the host pointer,",
-    "since pointing at the screen is what it is for. The mouse buttons, the",
-    "relative mouse axes and the two gameport joysticks are left unbound: which",
-    "host control drives them is the user's business."
+    "into DOS or Windows expects. The mouse binds the way the DOSBox-X core's",
+    "does: the POSITION axes to the host pointer's window position and the",
+    "RELATIVE axes to its movement, so either kind of input works out of the",
+    "box, and the left button to the host's left button. The middle and right",
+    "buttons and the two gameport joysticks ship unbound, as they do there."
   ],
   "AllTrollers": {
     "PC Keyboard, Mouse and Joysticks": {
@@ -110,11 +111,24 @@
       "Delete": "Delete",
       "Left Windows": "LeftWin",
       "Right Windows": "RightWin",
-      "Menu": "Apps"
+      "Menu": "Apps",
+      "Mouse Left": "WMouse L",
+      "Mouse Right": "",
+      "Mouse Middle": ""
     }
   },
   "AllTrollersAnalog": {
     "PC Keyboard, Mouse and Joysticks": {
+      "Mouse X": {
+        "Value": "RMouse X",
+        "Mult": 1.0,
+        "Deadzone": 0.0
+      },
+      "Mouse Y": {
+        "Value": "RMouse Y",
+        "Mult": 1.0,
+        "Deadzone": 0.0
+      },
       "Mouse Position X": {
         "Value": "WMouse X",
         "Mult": 1.0,

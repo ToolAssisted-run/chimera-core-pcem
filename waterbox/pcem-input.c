@@ -158,17 +158,54 @@ static int position_delta(int value, int screen, int *last)
         return moved;
 }
 
+/* A RELATIVE AXIS WINS OVER THE POSITION for the same direction, this frame.
+ *
+ * Both can be bound at once, and the package's defaults bind both - the host
+ * pointer's movement to Mouse X/Y and its window position to Mouse Position
+ * X/Y - so that either style of input works without the user having to choose
+ * first. Added together they would DOUBLE every movement: dragging the pointer
+ * ten pixels sends ten mickeys down the relative axis and another ten out of
+ * the position's difference. So a non-zero relative value takes the axis, and
+ * the position only keeps its place. That is the rule the DOSBox-X core
+ * settled on for the same pair of axes (its issue #61).
+ *
+ * The place is remembered EITHER WAY. Skipping the update while the relative
+ * axis drives would leave a stale pixel behind, and the next frame that fell
+ * back to the position would measure its difference from wherever the pointer
+ * was when it last had the axis - a jump, at the worst possible moment.
+ *
+ * This reads a value recorded earlier in the SAME frame, which holds because
+ * the engine pushes every declared axis, in declaration order, before it
+ * advances (session.cpp), and Mouse X/Y are declared before Mouse Position
+ * X/Y. check-axes.py is what keeps that order honest. */
+static int g_relThisFrameX, g_relThisFrameY;
+
+void pcem_driver_clear_axis_frame(void)
+{
+        g_relThisFrameX = 0;
+        g_relThisFrameY = 0;
+}
+
 void pcem_driver_set_axis(int index, int value, int *dx, int *dy, int *dz,
                           int screenW, int screenH)
 {
+        int moved;
         (void)dz;
-        /* The mouse is relative: the axis carries this frame's movement in
-         * mickeys, which is what PCem asks for through mouse_get_mickeys. */
         switch (index) {
-        case PCEM_AXIS_MOUSE_X: *dx += value; break;
-        case PCEM_AXIS_MOUSE_Y: *dy += value; break;
-        case PCEM_AXIS_MOUSE_POS_X: *dx += position_delta(value, screenW, &g_lastPosPxX); break;
-        case PCEM_AXIS_MOUSE_POS_Y: *dy += position_delta(value, screenH, &g_lastPosPxY); break;
+        /* relative: the axis carries this frame's movement in mickeys, which
+         * is what PCem asks for through mouse_get_mickeys */
+        case PCEM_AXIS_MOUSE_X: g_relThisFrameX = value; *dx += value; break;
+        case PCEM_AXIS_MOUSE_Y: g_relThisFrameY = value; *dy += value; break;
+        /* absolute: the movement that would reach it, unless the relative axis
+         * has already said how far to move */
+        case PCEM_AXIS_MOUSE_POS_X:
+                moved = position_delta(value, screenW, &g_lastPosPxX);
+                if (g_relThisFrameX == 0) *dx += moved;
+                break;
+        case PCEM_AXIS_MOUSE_POS_Y:
+                moved = position_delta(value, screenH, &g_lastPosPxY);
+                if (g_relThisFrameY == 0) *dy += moved;
+                break;
         default: break;
         }
 }
