@@ -806,6 +806,7 @@ static void compose_cfg(void)
                 drv_setting_str("mouseType", "Microsoft 2-button mouse (serial)", v, sizeof v);
                 i = index_of_name(mouse_get_name, v, 16);
                 cfg_add("mouse_type = %d\n", i < 0 ? 0 : i);
+                pcem_driver_set_mouse_sensitivity(wbx_setting_double("mouseSensitivity", 0.5));
                 drv_setting_str("joystickType", "Standard 2-button joystick(s)", v, sizeof v);
                 i = index_of_name(joystick_get_name, v, 16);
                 cfg_add("joystick_type = %d\n", i < 0 ? 0 : i);

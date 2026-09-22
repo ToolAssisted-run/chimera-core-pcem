@@ -180,6 +180,39 @@ static int position_delta(int value, int screen, int *last)
  * X/Y. check-axes.py is what keeps that order honest. */
 static int g_relThisFrameX, g_relThisFrameY;
 
+/* HOW FAR A MOVEMENT MOVES THE MACHINE. The same knob, and the same default,
+ * as the DOSBox-X core's Mouse Relative Sensitivity: it multiplies relative
+ * movement on its way to the mickey stream, so it scales the pointer's travel
+ * and not its destination - an absolute position still lands where it says,
+ * but it takes this many times as many mickeys to get there.
+ *
+ * THE REMAINDER IS KEPT, and it has to be. Mickeys are integers and the
+ * default is 0.5, so a one-pixel movement scales to half a mickey and
+ * truncates to NOTHING: at that setting the pointer would simply refuse to
+ * move while the hand moved slowly, and move normally when it moved fast,
+ * which reads as a broken mouse rather than a slow one. Carrying the fraction
+ * to the next movement makes two one-pixel steps one mickey, which is what
+ * halving is supposed to mean. It is ordinary guest memory, so a savestate
+ * carries it like everything else the machine was told. */
+static double g_mouseSens = 1.0;
+static double g_mouseFracX, g_mouseFracY;
+
+void pcem_driver_set_mouse_sensitivity(double s)
+{
+        g_mouseSens = s;
+}
+
+static int scale_mickeys(int raw, double *frac)
+{
+        double want;
+        int whole;
+        if (raw == 0) return 0;
+        want = (double)raw * g_mouseSens + *frac;
+        whole = (int)want;          /* toward zero; the sign rides with it */
+        *frac = want - (double)whole;
+        return whole;
+}
+
 void pcem_driver_clear_axis_frame(void)
 {
         g_relThisFrameX = 0;
@@ -194,17 +227,23 @@ void pcem_driver_set_axis(int index, int value, int *dx, int *dy, int *dz,
         switch (index) {
         /* relative: the axis carries this frame's movement in mickeys, which
          * is what PCem asks for through mouse_get_mickeys */
-        case PCEM_AXIS_MOUSE_X: g_relThisFrameX = value; *dx += value; break;
-        case PCEM_AXIS_MOUSE_Y: g_relThisFrameY = value; *dy += value; break;
+        case PCEM_AXIS_MOUSE_X:
+                g_relThisFrameX = value;
+                *dx += scale_mickeys(value, &g_mouseFracX);
+                break;
+        case PCEM_AXIS_MOUSE_Y:
+                g_relThisFrameY = value;
+                *dy += scale_mickeys(value, &g_mouseFracY);
+                break;
         /* absolute: the movement that would reach it, unless the relative axis
          * has already said how far to move */
         case PCEM_AXIS_MOUSE_POS_X:
                 moved = position_delta(value, screenW, &g_lastPosPxX);
-                if (g_relThisFrameX == 0) *dx += moved;
+                if (g_relThisFrameX == 0) *dx += scale_mickeys(moved, &g_mouseFracX);
                 break;
         case PCEM_AXIS_MOUSE_POS_Y:
                 moved = position_delta(value, screenH, &g_lastPosPxY);
-                if (g_relThisFrameY == 0) *dy += moved;
+                if (g_relThisFrameY == 0) *dy += scale_mickeys(moved, &g_mouseFracY);
                 break;
         default: break;
         }

@@ -156,6 +156,56 @@ int main(void)
         eq("Y took the position, in the same frame", dy, 240);
         pcem_driver_clear_axis_frame();
 
+        /* SENSITIVITY, and the remainder it must keep.
+         *
+         * Mickeys are integers and the default multiplier is 0.5, so a
+         * one-pixel movement scales to half a mickey. Dropping that half would
+         * make the pointer refuse to move while the hand moved slowly and move
+         * normally when it moved fast - a broken mouse, not a slow one. */
+        pcem_driver_set_mouse_sensitivity(0.5);
+        pcem_driver_clear_axis_frame();
+        dx = 0;
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_X, 10, &dx, &dy, &dz, W, H);
+        eq("half sensitivity halves a movement", dx, 5);
+        pcem_driver_clear_axis_frame();
+
+        dx = 0;
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_X, 1, &dx, &dy, &dz, W, H);
+        eq("one pixel at half sensitivity is not a whole mickey yet", dx, 0);
+        pcem_driver_clear_axis_frame();
+        dx = 0;
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_X, 1, &dx, &dy, &dz, W, H);
+        eq("but the second one arrives, so nothing was lost", dx, 1);
+        pcem_driver_clear_axis_frame();
+
+        /* backwards too: the residual carries its sign */
+        dx = 0;
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_X, -1, &dx, &dy, &dz, W, H);
+        pcem_driver_clear_axis_frame();
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_X, -1, &dx, &dy, &dz, W, H);
+        eq("two pixels back is one mickey back", dx, -1);
+        pcem_driver_clear_axis_frame();
+
+        /* It scales the POSITION's implied movement as well, since that is
+         * relative movement too once the difference has been taken.
+         *
+         * The settle runs at 1.0 ON PURPOSE. Scaling it would leave half a
+         * mickey behind, and the measured step below would then come out one
+         * short - correctly, because the residual is meant to carry. Getting
+         * 159 here the first time was the mechanism working, not failing; it
+         * is also why the checks above are written as whole pairs. */
+        pcem_driver_set_mouse_sensitivity(1.0);
+        dx = 0;
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_POS_X, 0, &dx, &dy, &dz, W, H);
+        pcem_driver_clear_axis_frame();
+        pcem_driver_set_mouse_sensitivity(0.5);
+        dx = 0;
+        pcem_driver_set_axis(PCEM_AXIS_MOUSE_POS_X, 32768, &dx, &dy, &dz, W, H);
+        eq("and it scales what a position implies", dx, 160);
+        pcem_driver_clear_axis_frame();
+
+        pcem_driver_set_mouse_sensitivity(1.0);
+
         if (failures) { printf("test-input: %d failure(s)\n", failures); return 1; }
         printf("test-input: all checks passed\n");
         return 0;

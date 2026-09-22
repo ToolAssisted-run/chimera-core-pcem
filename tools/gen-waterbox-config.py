@@ -546,6 +546,15 @@ def main():
          "description": "Which mouse is plugged in. A machine with no PS/2 port needs a "
                         "serial one; the Amstrad and Olivetti mice are built into those "
                         "machines."},
+        {"name": "mouseSensitivity", "display": "Mouse Relative Sensitivity",
+         "type": "float", "default": 0.5,
+         "description": "Multiplies every relative mouse movement before the machine "
+                        "sees it, in mickeys. It applies to Mouse X/Y and to the "
+                        "movement Mouse Position X/Y implies, so it scales the "
+                        "pointer's whole travel, not its destination: an absolute "
+                        "position still lands where it says, but it takes this many "
+                        "times as many mickeys to get there. The same knob, with the "
+                        "same default, as the DOSBox-X core's."},
         {"name": "joystickType", "display": "Joystick", "type": "enum",
          "options": tables["joysticks"], "default": "Standard 2-button joystick(s)",
          "description": "What is in the game port."}
