@@ -46,9 +46,17 @@ report() {
 	printf '%-6s %-34s %s\n' "$1" "$2" "${3:-}"
 }
 
+finish() {
+	printf '\n%d passed, %d failed, %d skipped\n' "$pass" "$fail" "$skip"
+	# A gate that skipped everything has proven nothing, and must not read as a
+	# pass (gates.md).
+	[ "$pass" -eq 0 ] && { echo "NOTHING RAN"; exit 1; }
+	[ "$fail" -eq 0 ] || exit 1
+	exit 0
+}
+
 # A SKIP is visible here and in the summary, and a gate that skipped
-# everything is NOT a pass - see the exit status at the bottom.
-[ -d "$roms" ] || { report SKIP "everything" "no PCem ROM set at $roms"; }
+# everything is NOT a pass - see finish().
 [ -x "$run" ]  || { report SKIP "everything" "no chimera-run at $run"; }
 
 # ---------------------------------------------------------------- 1. build
@@ -119,6 +127,15 @@ if python3 "$root/tools/check-presets.py" "$work/presets-broken.config" \
 else
 	report PASS "a misdeclared preset is caught" \
 		"negative control, $(grep -c BAD "$work/presets-neg.log") caught"
+fi
+
+# Every leg from here on runs a machine, and every PC machine needs its BIOS,
+# which is not ours to ship: without the ROM set (a public CI runner) the gate
+# stops at what it can prove - the package builds, fresh, from a declaration
+# that is legal - and says what it did not run.
+if [ ! -d "$roms" ]; then
+	report SKIP "every leg that runs a machine" "no PCem ROM set at $roms (PCEM_ROMS)"
+	finish
 fi
 
 # ------------------------------------------------------- 2. it runs at all
@@ -698,9 +715,4 @@ else
 	report FAIL "600-frame run for the state legs"
 fi
 
-printf '\n%d passed, %d failed, %d skipped\n' "$pass" "$fail" "$skip"
-# A gate that skipped everything has proven nothing, and must not read as a
-# pass (gates.md).
-[ "$pass" -eq 0 ] && { echo "NOTHING RAN"; exit 1; }
-[ "$fail" -eq 0 ] || exit 1
-exit 0
+finish

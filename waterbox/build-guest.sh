@@ -8,6 +8,11 @@ set -u
 TOOLS=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$TOOLS/.." && pwd)
 SRC=${PCEM_SRC:-$ROOT/extern/pcem/src}
+# The submodule carries the patch series, applied here so a fresh checkout (CI)
+# builds what a working tree does; a tree named by PCEM_SRC is the caller's own.
+if [ -z "${PCEM_SRC:-}" ]; then
+  sh "$TOOLS/apply-patches.sh" || { echo "the patch series does not apply" >&2; exit 1; }
+fi
 OUT=${WBX_DIR:-$ROOT/build/wbx}
 OBJ=$OUT/obj
 mkdir -p "$OBJ"
