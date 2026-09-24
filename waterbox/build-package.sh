@@ -32,6 +32,8 @@ chimera_root="$(cd "$chimera_root" && pwd)"
 # The tables and the firmware list are GENERATED from PCem's own sources and
 # from docs/PLAN.md's enumeration, so waterbox.config cannot drift from the
 # emulator. Regenerate before packaging, always.
+# a fresh checkout has no build/ yet
+mkdir -p "$root/build/gen"
 python3 "$root/tools/gen-config.py"          "$root/extern/pcem/src" "$root/build/gen/tables.json"
 python3 "$root/tools/gen-firmware.py"        "$root/docs/PLAN.md"    "$root/build/gen/firmware.json"
 python3 "$root/tools/gen-waterbox-config.py" "$root/build/gen/tables.json" \
