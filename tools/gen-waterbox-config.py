@@ -189,6 +189,70 @@ def build_presets(labels):
     ]
 
 
+# ---- what the controls and the system are called ----
+# The frontend keeps no table of these: a core says what its own are called.
+# MNEMONICS is the letter each button writes into a movie's text and heads its
+# input column with, by the button's name - whole, or without its player ("P2
+# Up" is found under "Up"), so one line serves every pad. AXIS_HEADERS is the
+# short header of each axis's column. (An entry is read by position: a letter
+# may change and no movie made before it is harmed.)
+MNEMONICS = {
+    "Escape": "E", "1": "1", "2": "2", "3": "3", "4": "4", "5": "5", "6": "6", "7": "7", "8": "8",
+    "9": "9", "0": "0", "Minus": "M", "Equals": "E", "Backspace": "B", "Tab": "T", "Q": "Q",
+    "W": "W", "E": "E", "R": "r", "T": "T", "Y": "Y", "U": "U", "I": "I", "O": "O", "P": "P",
+    "Left Bracket": "B", "Right Bracket": "B", "Enter": "E", "Left Ctrl": "C", "A": "A", "S": "S",
+    "D": "D", "F": "F", "G": "G", "H": "H", "J": "J", "K": "K", "L": "l", "Semicolon": "S",
+    "Apostrophe": "A", "Backquote": "B", "Left Shift": "S", "Backslash": "B", "Z": "Z", "X": "X",
+    "C": "C", "V": "V", "B": "B", "N": "N", "M": "M", "Comma": "C", "Period": "P", "Slash": "S",
+    "Right Shift": "S", "Keypad Multiply": "M", "Left Alt": "A", "Space": "S", "Caps Lock": "L",
+    "F1": "1", "F2": "2", "F3": "3", "F4": "4", "F5": "5", "F6": "6", "F7": "7", "F8": "8",
+    "F9": "9", "F10": "0", "Num Lock": "L", "Scroll Lock": "L", "Keypad 7": "7", "Keypad 8": "8",
+    "Keypad 9": "9", "Keypad Minus": "M", "Keypad 4": "4", "Keypad 5": "5", "Keypad 6": "6",
+    "Keypad Plus": "P", "Keypad 1": "1", "Keypad 2": "2", "Keypad 3": "3", "Keypad 0": "0",
+    "Keypad Period": "P", "F11": "F", "F12": "F", "Keypad Enter": "E", "Right Ctrl": "C",
+    "Keypad Divide": "D", "Print Screen": "S", "Right Alt": "A", "Home": "H", "Up": "U",
+    "Page Up": "U", "Left": "L", "Right": "R", "End": "E", "Down": "D", "Page Down": "D",
+    "Insert": "I", "Delete": "D", "Left Windows": "W", "Right Windows": "W", "Menu": "M",
+    "Mouse Left": "l", "Mouse Right": "r", "Mouse Middle": "M", "Joystick 1 Button 1": "1",
+    "Joystick 1 Button 2": "2", "Joystick 2 Button 1": "1", "Joystick 2 Button 2": "2",
+}
+AXIS_HEADERS = {
+    "Mouse X": "mX", "Mouse Y": "mY", "Mouse Position X": "MPX", "Mouse Position Y": "MPY",
+    "Joystick 1 X": "J1X", "Joystick 1 Y": "J1Y", "Joystick 2 X": "J2X", "Joystick 2 Y": "J2Y",
+}
+SYSTEM_NAMES = {
+    "PC": "IBM PC compatible",
+}
+
+
+def _bare(name):
+    """A control's name without its player: "P2 Up" -> "Up"."""
+    head, _, rest = name.partition(" ")
+    return rest if rest and head[:1] == "P" and head[1:].isdigit() else name
+
+
+def mnemonics_for(buttons):
+    """The "mnemonics" of an input declaration: a letter for every one of its
+    buttons, and for nothing else. A button nobody gave a letter stops the
+    build - the engine would give it its rule's guess, and two columns of one
+    pad would share a letter with nobody having decided it."""
+    out = {}
+    for b in buttons:
+        key = b if b in MNEMONICS else _bare(b)
+        if key not in MNEMONICS:
+            raise SystemExit("no mnemonic for the button %r (MNEMONICS in %s)" % (b, __file__))
+        out[key] = MNEMONICS[key]
+    return out
+
+
+def with_headers(axes):
+    """The axes with their column headers; an axis nobody named stops the build."""
+    missing = [a["name"] for a in axes if a["name"] not in AXIS_HEADERS]
+    if missing:
+        raise SystemExit("no header for the axes %s (AXIS_HEADERS in %s)" % (missing, __file__))
+    return [dict(a, header=AXIS_HEADERS[a["name"]]) for a in axes]
+
+
 def main():
     tables = json.loads(Path(sys.argv[1]).read_text())
     firmware = json.loads(Path(sys.argv[2]).read_text())
@@ -646,7 +710,8 @@ def main():
                 "mask is unioned with it. The order here is generated from "
                 "waterbox/pcem-input.c, which holds the scancode for each.",
             "buttons": buttons,
-            "axes": [
+            "mnemonics": mnemonics_for(buttons),
+            "axes": with_headers([
                 {"name": "Mouse X", "min": -128, "max": 127, "neutral": 0},
                 {"name": "Mouse Y", "min": -128, "max": 127, "neutral": 0},
                 {"name": "Mouse Position X", "min": 0, "max": 65535, "neutral": 32768},
@@ -655,9 +720,10 @@ def main():
                 {"name": "Joystick 1 Y", "min": 0, "max": 65535, "neutral": 32767},
                 {"name": "Joystick 2 X", "min": 0, "max": 65535, "neutral": 32767},
                 {"name": "Joystick 2 Y", "min": 0, "max": 65535, "neutral": 32767},
-            ],
+            ]),
         },
         "systemId": "PC",
+        "systemNames": SYSTEM_NAMES,
         "settings": settings,
         "presets": presets,
         "firmware": firmware,
