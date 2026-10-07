@@ -2,9 +2,6 @@
 
 An IBM-PC-compatible Chimera core built on PCem.
 
-**Local only.** There is no remote and nothing is pushed, on Sergio's
-instruction, until he says otherwise.
-
 ## Layout
 
 | Path | What |
@@ -67,6 +64,26 @@ instruction, until he says otherwise.
   a disk geometry. Gate 29/29, and the wizard itself was driven over this
   package once by hand to check the stand-in the gate uses. `docs/PRESETS.md`.
 - M2 (the machine, native) continues.
+
+## Using it in Chimera
+
+Chimera ships no cores and downloads nothing. Download the `.chimeraCore`
+package from this repository's
+[Releases](https://github.com/ToolAssisted-run/chimera-core-pcem/releases)
+page, or build it, and put it in the `Cores` folder beside `Chimera.exe`.
+File > Core Manager lists it. The same file works on Linux and on Windows.
+Every machine needs its ROMs, which you supply.
+
+## Building the core
+
+[docs/BUILDING.md](docs/BUILDING.md) has the full instructions, as CI runs
+them, and [AGENTS.md](AGENTS.md) is the operating guide for an AI coding
+agent. In short, with miniBox built in a Chimera checkout:
+
+```sh
+sh waterbox/build-package.sh -r <chimera>       # -> <chimera>/build/Cores/pcem.chimeraCore
+CHIMERA_ROOT=<chimera> ./waterbox/run-gate.sh   # the gate; machine legs need PCEM_ROMS
+```
 
 ## Building the M1a harness
 
