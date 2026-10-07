@@ -18,6 +18,12 @@
  *                    a lit-pixel count tells the two apart without reading
  *                    anything off the screen.
  *
+ *   MODE=4 (clock)   measure the CPU's clock the way a guest can: the time
+ *                    stamp counter across 18 ticks of the BIOS's 18.2 Hz
+ *                    timer, which is 18 * 65536 PIT periods of 1/1193182 s.
+ *                    The 64-bit count goes after MAGIC in LBA 1. Prints 'C'.
+ *                    A Pentium or later: there is no RDTSC before one.
+ *
  * So MAGIC at LBA 2 of an exported image can only have got there by a machine
  * READING it from the disk it was seeded with. That is the round trip, and it
  * is checked on the bytes rather than on the screen.
@@ -46,6 +52,37 @@ mloop:
 	movw	$0x0e23, %ax
 	movw	$0x0007, %bx
 	jmp	mloop
+
+#elif MODE == 4
+	movw	$0x7e00, %di
+	movw	$magic, %si
+	movw	$16, %cx
+	rep	movsb
+	/* from the edge of a tick, so that 18 of them are 18 whole ones */
+	movw	0x046c, %bx
+1:	cmpw	0x046c, %bx
+	je	1b
+	rdtsc
+	movl	%eax, %esi
+	movl	%edx, %edi
+	movw	0x046c, %bx
+	addw	$18, %bx
+2:	cmpw	0x046c, %bx
+	jne	2b
+	rdtsc
+	subl	%esi, %eax
+	sbbl	%edi, %edx
+	movl	%eax, 0x7e10
+	movl	%edx, 0x7e14
+
+	movw	$0x0301, %ax		/* write one sector */
+	movw	$0x7e00, %bx
+	movw	$0x0002, %cx		/* cylinder 0, sector 2 = LBA 1 */
+	movw	$0x0080, %dx		/* head 0, drive 0x80 */
+	int	$0x13
+	jc	bad
+	movb	$'C', %al
+	jmp	say
 
 #elif MODE == 1
 	/* fill 0x7e00..0x7fff with MAGIC, over and over */

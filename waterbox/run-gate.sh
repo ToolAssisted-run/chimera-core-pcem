@@ -576,6 +576,82 @@ else
 	report FAIL "Custom geometry overrides Auto" "got [$geom]"
 fi
 
+# ------------------------ 4h2. the CPU's clock is the project's to set
+# PCem's fastest Pentium II is the /450 (chimera#194). "CPU Clock (MHz)" runs
+# the chosen CPU at another clock, and the claim is about what the MACHINE then
+# is, so the machine is asked: a boot sector counts the time stamp counter
+# across 18 ticks of the BIOS's timer - 18 * 65536 periods of the 1.193182 MHz
+# PIT - and writes the count to the hard disk, where the export is read. The
+# harness also says what clock the core believes it has, and the two must
+# agree; neither alone would do (the core's belief is the setting read back).
+#
+#   900   twice the chip's own clock
+#   2000  the limit: the most PCem's timers hold, and the BIOS still has to POST
+#   none  the chip's own 450 - the control, without which "the guest measures
+#         what was set" could be a probe that measures the setting
+#   2001  refused by name, not clamped: a movie must not cite a clock the
+#         machine did not run at
+clock_run() {  # <MHz, or "none"> -> "<the core's clock in Hz> <what the guest measured in MHz>"
+	cw="$work/clock/w$1"; co="$work/clock/o$1"
+	rm -rf "$cw" "$co"; mkdir -p "$cw" "$co"
+	cp "$gw/ga686bx_6BX.F2a" "$gw/voodoo3_3000_3k12sd.rom" "$gw/awe32.raw" "$gw/mda.rom" "$cw/"
+	cp "$work/hdd/clock.img" "$cw/boot.img"
+	cp "$work/hdd/blank.img" "$cw/disk.img"
+	hdd_settings "$cw"
+	python3 - "$cw/settings" "$1" <<'CLOCKSET'
+import json, sys
+p, mhz = sys.argv[1], sys.argv[2]
+d = json.load(open(p))
+if mhz != "none":
+    d["cpuClockMHz"] = int(mhz)
+json.dump(d, open(p, "w"))
+CLOCKSET
+	"$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$cw" 3000 \
+		--savedata-out "$co" > "$work/clock$1.log" 2>&1 || true
+	python3 - "$work/clock$1.log" "$co/disk.img" <<'CLOCKREAD'
+import os, re, struct, sys
+log = open(sys.argv[1], errors="replace").read()
+m = re.search(r"^CPU clock_hz=(\d+)", log, re.M)
+core = m.group(1) if m else "0"
+guest = "0"
+if os.path.exists(sys.argv[2]):
+    d = open(sys.argv[2], "rb").read(1024)[512:]
+    if d[:16] == b"CHIMERA-PCEM-HD!":
+        guest = "%.2f" % (struct.unpack("<Q", d[16:24])[0] * 1193182 / (18 * 65536) / 1e6)
+print(core, guest)
+CLOCKREAD
+}
+clock_is() {  # <"core guest"> <MHz> -> true when both are that clock, the guest's within 1%
+	python3 - "$1" "$2" <<'CLOCKIS'
+import sys
+core, guest = sys.argv[1].split()
+want = float(sys.argv[2])
+sys.exit(0 if int(core) == int(want * 1e6) and abs(float(guest) - want) <= want / 100 else 1)
+CLOCKIS
+}
+
+c900=$(clock_run 900)
+c2000=$(clock_run 2000)
+cown=$(clock_run none)
+if clock_is "$c900" 900 && clock_is "$c2000" 2000; then
+	report PASS "a CPU clock setting is the clock the guest measures" \
+		"900 -> ${c900#* } MHz, 2000 -> ${c2000#* } MHz"
+else
+	report FAIL "a CPU clock setting is the clock the guest measures" \
+		"900 -> [$c900], 2000 -> [$c2000] (the core's Hz, the guest's MHz)"
+fi
+if clock_is "$cown" 450; then
+	report PASS "with no clock set the guest measures the CPU's own" "${cown#* } MHz, negative control"
+else
+	report FAIL "with no clock set the guest measures the CPU's own" "got [$cown]"
+fi
+clock_run 2001 > /dev/null
+if grep -q "CPU Clock (MHz) is 2001" "$work/clock2001.log"; then
+	report PASS "a clock past the limit is refused by name" "negative control"
+else
+	report FAIL "a clock past the limit is refused by name" "see build/gate/clock2001.log"
+fi
+
 # ------------------- 4i. the whole route, through the engine and a project
 # Every leg above drives the core through run-wbx, which is the guest ABI and
 # nothing else. A user's disk travels further than that: a project file names

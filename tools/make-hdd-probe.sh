@@ -5,6 +5,8 @@
 #   <out>/reader.img   360 KB floppy, boot sector reads LBA 1 and, on a match,
 #                      copies it to LBA 2
 #   <out>/marker.img   360 KB floppy, boot sector fills the screen with '#'
+#   <out>/clock.img    360 KB floppy, boot sector times the CPU's clock against
+#                      the BIOS timer and writes the count to LBA 1
 #   <out>/blank.img    a blank hard disk, 63/16/20 = 10,321,920 bytes
 #
 # usage: make-hdd-probe.sh <outdir>
@@ -32,6 +34,7 @@ open(sys.argv[2],'wb').write(boot + b'\0' * (368640 - len(boot)))
 build 1 writer.img
 build 2 reader.img
 build 3 marker.img
+build 4 clock.img
 
 # 63 sectors x 16 heads x 20 cylinders x 512, so the geometry the driver
 # derives from the length is exactly the geometry it was made with

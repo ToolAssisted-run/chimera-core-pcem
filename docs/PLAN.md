@@ -1677,3 +1677,28 @@ project real bugs this week.
   (a guest program triggers screen capture and verification over I/O
   ports), which is the right primitive for this core's gate. Nothing
   built, nothing pushed, no repository created.
+- **2026-10-07** A CPU clock setting (chimera#194). PCem's fastest
+  Pentium II is the /450, and the request was for more. `cpuClockMHz`:
+  0 is the chosen CPU's own clock, 1 to 2000 runs that CPU at that clock
+  - the chip, its instruction timings and its CPUID stay what was chosen.
+  The driver changes the entry IN PCem's CPU table before `cpu_set()`,
+  because every reader of the clock goes back to the table (`cpu_set` on
+  each reset, `setpitclock` in three places), and scales the entry's ISA
+  divider so that the ISA bus keeps the speed it had. 2000 is the limit
+  because `timer.h` holds a period of at most 0x7fffffff CPU cycles and is
+  written for periods of up to a second. One product in `cpu_set`
+  overflowed above 536 MHz - four times the clock, for the PCI bus's
+  timing, in an int - and made that time negative without a word: patch
+  0003, and the driver now refuses a machine whose PCI times did not come
+  out positive, which is how the patch is checked (without it a clock of
+  2000 does not load). Measured BY THE GUEST: a fourth boot-sector probe
+  (`tools/hdd-probe.S`, MODE 4) counts the time stamp counter across 18
+  ticks of the BIOS timer and writes the count to the disk; set to 900,
+  2000 and 100 it measures 900.00, 2000.00 and 100.00 MHz, and with
+  nothing set 450.00. The GA-686BX's own POST reads "PENTIUM II CPU at
+  1.98GHz" at 2000. A value of 0 gives the stream of a run with no such
+  setting. Cost: emulation time in proportion - 3000 frames of POST take
+  9 s at 450 MHz and 35 s at 2000. Gate legs: the guest measures 900 and
+  2000; with nothing set it measures the CPU's own (control); 2001 is
+  refused by name. Not tried: any operating system at a clock above 450,
+  and any CPU other than the Pentium II/450 above its own clock.

@@ -436,6 +436,45 @@ static int resolve_cpu(int model, const char *want, int *manufacturer, int *cpu)
 
 /* What this machine WILL take, for the error message. A list of what is
  * wrong is worth more than "invalid". */
+/* The CPU's clock, when the project asks for another than the chip's own
+ * (chimera#194): PCem's fastest Pentium II is the /450, and a machine that
+ * needs more than that has nowhere to go. The chip stays the chip that was
+ * chosen - its instruction timings, its CPUID - and only its clock changes,
+ * which is what an overclock is. PCem's timers hold a period of at most
+ * 0x7fffffff CPU cycles and are written for periods of up to a second
+ * (timer.h), so 2000 MHz is the most the clock can be and it is the limit
+ * here.
+ *
+ * The entry is changed IN THE TABLE, because every reader of the clock goes
+ * back to the table: cpu_set() on every reset, setpitclock() in three places.
+ * What is derived from the clock per CPU cycle follows by itself (the PIT, the
+ * video, the PCI bus, whose times cpu_set works out from it - patch 0003 for
+ * the one product that overflowed). The ISA clock does not: it is the entry's
+ * own divider of the CPU clock, so the divider is scaled to leave the bus at
+ * the speed it had. Returns 0 with the load error set for a clock out of
+ * range. */
+static int apply_cpu_clock(int model, int manufacturer, int cpu)
+{
+        const int mhz = drv_setting_int("cpuClockMHz", 0);
+        CPU *c = &models[model].cpu[manufacturer].cpus[cpu];
+        int64_t hz;
+
+        if (mhz == 0)
+                return 1;
+        if (mhz < 1 || mhz > 2000) {
+                snprintf(g_loadError, sizeof g_loadError,
+                         "CPU Clock (MHz) is %d: it is 0 for the CPU's own clock, or 1 to 2000", mhz);
+                return 0;
+        }
+        hz = (int64_t)mhz * 1000000;
+        if (c->atclk_div > 0 && c->rspeed > 0) {
+                int64_t div = ((int64_t)c->atclk_div * hz + c->rspeed / 2) / c->rspeed;
+                c->atclk_div = div < 1 ? 1 : (int)div;
+        }
+        c->rspeed = (int)hz;
+        return 1;
+}
+
 static void cpu_choices(int model, char *out, int outsz)
 {
         int m, c, n = 0;
@@ -962,7 +1001,22 @@ ECL_EXPORT int Init(void)
                                  want, choices);
                         return 0;
                 }
+                if (!apply_cpu_clock(model, cpu_manufacturer, cpu))
+                        return 0;
                 cpu_set();
+                /* What cpu_set derives from the clock has to have come out as a
+                 * time: four times a fast clock overflowed an int there and
+                 * made the PCI bus's a NEGATIVE number of cycles, which runs -
+                 * wrongly, and says nothing (patch 0003). */
+                {
+                        extern int pci_nonburst_time, pci_burst_time;
+                        if (pci_nonburst_time <= 0 || pci_burst_time <= 0) {
+                                snprintf(g_loadError, sizeof g_loadError,
+                                         "the PCI bus's timing came out as %d and %d CPU cycles at this clock",
+                                         pci_nonburst_time, pci_burst_time);
+                                return 0;
+                        }
+                }
         }
 
         resetpchard();

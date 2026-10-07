@@ -461,6 +461,12 @@ int main(int argc, char **argv)
                        " audio_samples=%ld stream=%016llx\n",
                        frames, wall, frames / wall, (unsigned long long)Blits(),
                        W(), H(), audioTotal, (unsigned long long)stream);
+                /* the clock the machine was built with, on a line of its own so
+                 * that nothing reading RESULT has to change */
+                {
+                        intfn Hz = (intfn)proc(h, "GetCpuSpeedHz", 0);
+                        if (Hz) printf("CPU clock_hz=%d\n", Hz());
+                }
         }
 
         wbx_deactivate_host(h, &r);
