@@ -167,9 +167,9 @@ def main():
         ]}
         entries["mda.rom"]["display"] = "IBM character generator ROM (mda.rom)"
         entries["mda.rom"]["description"] = (
-            "The 8x8 and 8x14 character shapes an MDA or CGA-class card draws "
-            "text with. Without it the machine POSTs to a blank screen - PCem "
-            "loads fonts silently and does not complain.")
+            "The 8x8 and 8x14 character shapes that an MDA or CGA-type card "
+            "draws text with. Without it the machine starts with a blank "
+            "screen. PCem loads fonts without reporting a missing one.")
 
     out = sorted(entries.values(), key=lambda e: e["id"])
     out_path.write_text(json.dumps(out, indent=2))

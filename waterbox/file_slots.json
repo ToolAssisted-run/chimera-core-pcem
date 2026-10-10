@@ -16,7 +16,7 @@
       "min": 0,
       "max": -1,
       "formats": ["img", "ima", "dsk", "fdi", "86f", "td0", "imd"],
-      "help": "Images for drive A:. The first is in the drive at boot; the order here is the swap order. The drive itself is the Floppy Drive A setting, which defaults to Auto and fits the drive to whatever image you put here. If you set a drive by hand, mind that it matches: PCem does not refuse a disk the drive cannot reach, it clamps the head at the drive's last track and the guest gets read errors instead."
+      "help": "Disk images for drive A:. The first is in the drive when the machine starts, and the order here is the order they are swapped in. The drive itself is chosen with the Floppy Drive A setting. Its default is Auto, which chooses the drive that fits the image you give here. If you choose a drive yourself, make sure it matches. PCem does not refuse a disk that the drive cannot read completely. It stops the head at the drive's last track, and the machine gets read errors."
     },
     {
       "id": "floppy_b",
@@ -24,7 +24,7 @@
       "min": 0,
       "max": -1,
       "formats": ["img", "ima", "dsk", "fdi", "86f", "td0", "imd"],
-      "help": "Images for drive B:, the same way. A machine with only one drive ignores this."
+      "help": "Disk images for drive B:. It works the same way as drive A:. A machine with only one drive ignores this."
     },
     {
       "id": "cdrom",
@@ -32,7 +32,7 @@
       "min": 0,
       "max": -1,
       "formats": ["iso", "cue"],
-      "help": "Discs for the CD-ROM drive. PCem reads the image itself, so a .cue with its tracks beside it works. Needs a machine with a CD-ROM controller - the CD-ROM settings appear once there is a disc here."
+      "help": "Discs for the CD-ROM drive. PCem reads the image itself, so a .cue file with its track files beside it works. It needs a machine with a CD-ROM controller. The CD-ROM settings appear once a disc is given here."
     },
     {
       "id": "hdd",
@@ -40,7 +40,7 @@
       "min": 0,
       "max": 1,
       "formats": ["img", "hdd", "vhd", "hdi"],
-      "help": "A hard disk image, mounted as drive C:. It seeds a writable disk rather than being written in place: writes persist for the session, travel in savestates, and can be exported as save data - and an exported image can be given back here to continue from. Geometry is derived from the file unless the Hard Disk settings say otherwise."
+      "help": "A hard disk image, used as drive C:. Your file is never changed. The machine works on a copy of it that can be written to. What is written stays for the session, is part of savestates, and can be exported as save data. An exported image can be given here to continue from it. The disk's geometry is worked out from the file unless the Hard Disk settings say otherwise."
     },
     {
       "id": "hdd2",
@@ -48,7 +48,7 @@
       "min": 0,
       "max": 1,
       "formats": ["img", "hdd", "vhd", "hdi"],
-      "help": "A second hard disk, the same way."
+      "help": "A second hard disk. It works the same way."
     }
   ],
   "atLeastOneOf": [["floppy_a", "floppy_b", "cdrom", "hdd"]]
