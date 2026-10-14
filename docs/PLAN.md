@@ -1727,3 +1727,19 @@ project real bugs this week.
   machines, and a state is no bigger (2,570,538 bytes before and after -
   what the frame buffer never had drawn in it costs nothing).
 
+## 2026-10-14: the default bindings name keys Chimera sends
+
+The digits were on "0" to "9", Enter on Return, Backquote on Grave, the
+keypad's -, + and . on KeypadMinus, KeypadPlus and KeypadPeriod, Left and
+Right Ctrl on LeftControl and RightControl, and Left Shift and Left Alt on
+their left names alone. They are on Number0 to Number9, Enter, Backtick,
+KeypadSubtract, KeypadAdd, KeypadDecimal, Ctrl and LeftCtrl, RightCtrl, Shift
+and LeftShift, Alt and LeftAlt. Chimera hands a key to the bindings under one
+name: the name its DistinctKeyNameOverrides gives it ("Number1", "Enter",
+"Backtick", "KeypadAdd") or else its DistinctKey name ("Up"); and unless told
+otherwise it reads the left and right Shift, Ctrl and Alt as one key each,
+"Shift", "Ctrl" and "Alt" (Input.cs, Config.MergeLAndRModifierKeys). A default
+binding to another name never fired, so those controls shipped unbound on the
+keyboard. Checked on Xvfb: with 1, Return, left Shift and Up held, Chimera
+reports Number1, Enter, Shift and Up. Left and right names stay beside the
+merged one, for a setup with the merging off.
