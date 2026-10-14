@@ -60,7 +60,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends meson ninja-build build-essential cmake pkg-config python3 mono-complete xvfb libgl1-mesa-dev libx11-dev libxext-dev libasound2-dev
+          sudo apt-get install -y --no-install-recommends meson ninja-build build-essential cmake pkg-config python3 mono-complete xvfb libgl1-mesa-dev libx11-dev libxext-dev libasound2-dev nasm
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
@@ -94,6 +94,19 @@ jobs:
           [ -f "$mb/build/meson-cpp/build.ninja" ] || meson setup "$mb/build/meson-cpp" "$mb" -Dguest_cpp=true
           meson compile -C "$mb/build/meson-cpp"
 
+      - name: Fetch the source of the free BIOS the gate boots
+        # Sergey Kiselev's 8088 BIOS (GPL-3.0), at the one commit
+        # tests/free-bios/8088_bios.ref names: the gate builds it with nasm and
+        # boots PCem's Xi 8088 on it, so a PC runs on a runner that may not hold
+        # PCem's ROM set (chimera issue 260). For the tests only.
+        run: |
+          url="$(sed -n 's/^url //p' tests/free-bios/8088_bios.ref)"
+          commit="$(sed -n 's/^commit //p' tests/free-bios/8088_bios.ref)"
+          git init -q free-bios-src
+          git -C free-bios-src remote add origin "$url"
+          git -C free-bios-src fetch -q --depth 1 origin "$commit"
+          git -C free-bios-src checkout -q FETCH_HEAD
+
       - name: Core gate (builds and installs the package)
         # The commit is the core's authoritative version: this build is the one
         # that publishes the artifact, so what it stamps is what a movie can
@@ -102,6 +115,7 @@ jobs:
           CORE_VERSION: ${{ github.sha }}
           CHIMERA_ROOT: ${{ github.workspace }}/chimera-checkout
           MINIBOX_DIR: ${{ github.workspace }}/chimera-checkout/extern/chimera-common-minibox
+          PCEM_FREE_BIOS_SRC: ${{ github.workspace }}/free-bios-src
         run: ./waterbox/run-gate.sh
 
       - name: The package through the real frontend

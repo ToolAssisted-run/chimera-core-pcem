@@ -129,6 +129,72 @@ else
 		"negative control, $(grep -c BAD "$work/presets-neg.log") caught"
 fi
 
+# ------------------------------------------ 1b. a free PC, built from source
+# PCem's ROM set is not ours to put on a public CI runner, so on one the legs
+# below have no machine. Sergey Kiselev's 8088 BIOS is free (GPL-3.0) and
+# PCem's Xi 8088 machine is made for it: built from source here, with a CGA
+# that shows text in a stand-in for IBM's character ROM made from the BIOS's
+# own font, it is a PC that boots to its BIOS screen with nothing of anybody's
+# in it (chimera issue 260). For these checks only; tests/free-bios/ says how.
+#   PCEM_FREE_BIOS_SRC   a checkout of the source tests/free-bios/8088_bios.ref
+#                        names (and nasm and cmake to build it)
+fb="${PCEM_FREE_BIOS_SRC:-}"
+if [ -z "$fb" ]; then
+	report SKIP "free PC: every leg (four)" "needs PCEM_FREE_BIOS_SRC (a checkout of tests/free-bios/8088_bios.ref), nasm and cmake"
+elif ! sh "$root/tests/free-bios/build.sh" "$fb" "$work/free-bios" > "$work/free-bios.log" 2>&1; then
+	report FAIL "free PC: the BIOS builds" "$(tail -3 "$work/free-bios.log" | tr '\n' ' ')"
+else
+	echo "# $(tail -1 "$work/free-bios.log")"
+	xw="$work/xi8088"; mkdir -p "$xw"
+	cp "$work/free-bios/xi8088_bios-xi8088.bin" "$work/free-bios/mda.rom" "$xw/"
+	xiset='{"system":"x86 PC","machine":"xi8088 - [8088] Xi8088","cpu":"8088/4.77","fpu":"none","memSizeKB":640,"videoCard":"cga - CGA","soundCard":"none - None","hddController":"none - None","fpsNumerator":100,"fpsDenominator":1}'
+	printf '%s' "$xiset" > "$xw/settings"
+	xrun() { "$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$@" 2>/dev/null; }
+	# the screen is drawn, and it changed: the BIOS writes its lines one by one
+	xrun "$xw" 600 --shot 59="$work/xi-59.ppm" > /dev/null
+	xrun "$xw" 600 --shot 599="$work/xi-599.ppm" > /dev/null
+	lit=$(python3 - "$work/xi-59.ppm" "$work/xi-599.ppm" <<'PY'
+import sys
+def px(path):
+    d = open(path, "rb").read()
+    # P6 header: magic, size, maximum, then the pixels
+    parts = d.split(b"\n", 3)
+    return parts[3]
+a, b = px(sys.argv[1]), px(sys.argv[2])
+lit = sum(1 for i in range(0, len(b), 3) if b[i] | b[i + 1] | b[i + 2])
+print(lit if a != b else 0)
+PY
+)
+	if [ "${lit:-0}" -gt 1000 ]; then
+		report PASS "free PC: it reaches its BIOS screen" "$lit lit pixels at frame 599, and not the picture of frame 59"
+	else
+		report FAIL "free PC: it reaches its BIOS screen" "${lit:-0} lit pixels (0 also when frames 59 and 599 are the same picture)"
+	fi
+	x1=$(xrun "$xw" 600 | sed -n 's/.*stream=\([0-9a-f]*\).*/\1/p')
+	x2=$(xrun "$xw" 600 | sed -n 's/.*stream=\([0-9a-f]*\).*/\1/p')
+	if [ -n "$x1" ] && [ "$x1" = "$x2" ]; then
+		report PASS "free PC: deterministic over two runs" "stream=$x1"
+	else
+		report FAIL "free PC: deterministic over two runs" "$x1 vs $x2"
+	fi
+	printf '%s' "$xiset" | sed 's|"cpu":"8088/4.77"|"cpu":"8088/7.16"|' > "$xw/settings"
+	x3=$(xrun "$xw" 600 | sed -n 's/.*stream=\([0-9a-f]*\).*/\1/p')
+	printf '%s' "$xiset" > "$xw/settings"
+	if [ -n "$x3" ] && [ "$x3" != "$x1" ]; then
+		report PASS "free PC: the stream notices another CPU speed" "negative control"
+	else
+		report FAIL "free PC: the stream notices another CPU speed" "it did not - the legs above are blind"
+	fi
+	xs=$(xrun "$xw" 600 --state-roundtrip 300 | sed -n 's/^STATE //p')
+	xr1=$(printf '%s' "$xs" | sed -n 's/.*replay=\([0-9a-f]*\)\/[0-9a-f]*.*/\1/p')
+	xr2=$(printf '%s' "$xs" | sed -n 's/.*replay=[0-9a-f]*\/\([0-9a-f]*\).*/\1/p')
+	if [ -n "$xr1" ] && [ "$xr1" = "$xr2" ]; then
+		report PASS "free PC: a state taken and loaded replays the same" "state at frame 300 of 600"
+	else
+		report FAIL "free PC: a state taken and loaded replays the same" "${xs:-no STATE line}"
+	fi
+fi
+
 # Every leg from here on runs a machine, and every PC machine needs its BIOS,
 # which is not ours to ship: without the ROM set (a public CI runner) the gate
 # stops at what it can prove - the package builds, fresh, from a declaration

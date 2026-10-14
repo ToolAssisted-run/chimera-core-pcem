@@ -1702,3 +1702,28 @@ project real bugs this week.
   2000; with nothing set it measures the CPU's own (control); 2001 is
   refused by name. Not tried: any operating system at a clock above 450,
   and any CPU other than the Pentium II/450 above its own clock.
+- **2026-10-14** A free PC in CI (chimera#260). A public runner may not hold
+  PCem's ROM set, so CI booted nothing. The owner's decision: free programs
+  are built in CI from source. Sergey Kiselev's 8088 BIOS (GPL-3.0) is what
+  PCem's Xi 8088 machine is made for; `tests/free-bios/build.sh` builds it
+  from the commit `8088_bios.ref` names with nasm and cmake, and the result is
+  byte for byte the image the BIOS's repository publishes (v1.0.2, the
+  "noide" layout PCem reads). The CGA needs IBM's character ROM to show text,
+  so `make-font-rom.py` puts the BIOS's own 8x8 font (from the kbd package's
+  alt-8x8, GPL-3.0) where PCem reads the CGA's shapes, at 0x1800 of an 8 KB
+  file. The machine then shows the BIOS's screen ("Xi 8088 BIOS, Version
+  1.0.2 ... Distributed under the terms of the GNU General Public License").
+  Four gate legs, with the stream's own negative control (a faster 8088
+  changes it). For the tests only: neither file is in the package. Not
+  covered: anything after the BIOS - there is no free disk to boot.
+  The fourth leg found a bug at once: a state taken and loaded did not
+  replay the same picture on the Xi 8088, nor on an IBM PC 5150 with the
+  same CGA (the Pentium II machines did). The picture a frame shows is the
+  last one PCem handed over, and a CGA hands one over only now and then (10
+  times in 600 frames of a BIOS screen); that buffer was kept out of states
+  and rebuilt from the machine's screen bitmap after a load, which by then
+  held lines drawn since the last hand-over. The buffer is in the state now
+  and nothing is rebuilt: the round trip replays the same on all three
+  machines, and a state is no bigger (2,570,538 bytes before and after -
+  what the frame buffer never had drawn in it costs nothing).
+

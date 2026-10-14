@@ -25,8 +25,10 @@ run them.
 
   ```sh
   sudo apt-get update
-  sudo apt-get install -y --no-install-recommends meson ninja-build build-essential cmake pkg-config python3 mono-complete xvfb libgl1-mesa-dev libx11-dev libxext-dev libasound2-dev
+  sudo apt-get install -y --no-install-recommends meson ninja-build build-essential cmake pkg-config python3 mono-complete xvfb libgl1-mesa-dev libx11-dev libxext-dev libasound2-dev nasm
   ```
+
+  (`nasm` builds the free BIOS the gate boots without a ROM set, below.)
 
 - The .NET SDK 8.0, for Chimera. The workflow uses `actions/setup-dotnet@v4`
   with `dotnet-version: '8.0'`. By hand, Chimera's README gives
@@ -274,9 +276,19 @@ WITHOUT a ROM set (this is what CI runs), these legs run and nothing else:
 - `the declaration is legal`: `tools/check-declaration.py`
 - `the presets are legal`: `tools/check-presets.py`
 - `a misdeclared preset is caught`: the negative control of the leg above
+- with `PCEM_FREE_BIOS_SRC` set to a checkout of the source
+  `tests/free-bios/8088_bios.ref` names, a free PC: Sergey Kiselev's 8088
+  BIOS (GPL-3.0), built from that source with nasm and cmake
+  (`tests/free-bios/build.sh`), on PCem's Xi 8088 with a CGA. The CGA's
+  character ROM is not free either, so `tests/free-bios/make-font-rom.py`
+  makes a stand-in from the BIOS's own 8x8 font. Four legs: `free PC: it
+  reaches its BIOS screen`, `free PC: deterministic over two runs`, `free PC:
+  the stream notices another CPU speed` (the negative control) and `free PC: a
+  state taken and loaded replays the same`. CI fetches that one commit and
+  runs them. For the tests only: neither file is in the package.
 
-It then prints `SKIP every leg that runs a machine` and stops. Nothing in CI
-boots a machine, compares two runs, or loads a savestate.
+It then prints `SKIP every leg that runs a machine` and stops. Apart from
+the free PC, nothing in CI boots a machine.
 
 WITH a ROM set, every leg after that runs. The gate looks for a PCem ROM
 folder at `PCEM_ROMS` (default `$HOME/PCem-ROMs`). The files it names are

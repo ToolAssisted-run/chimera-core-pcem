@@ -226,13 +226,17 @@ void warning(const char *f, ...)
         fputc('\n', stderr);
 }
 
-/* The last rectangle PCem blitted. These are ordinary guest globals, so they
- * are machine state and a savestate carries them; the FRAME BUFFER they were
- * copied into is ECL_INVISIBLE and is not. That is the right way round - a
- * frame buffer is derivable - but it means the picture has to be rebuilt after
- * a state load, which is what StateLoaded does. Without it a loaded state
- * shows whatever the machine happened to be drawing before, possibly for
- * minutes, because a PC paints its screen once and then leaves it alone. */
+/* The last rectangle PCem blitted. The FRAME BUFFER it was copied into is
+ * part of the machine's state too (Init allocates it from ordinary memory):
+ * the picture a frame shows is the last one PCem handed over, which is NOT
+ * the machine's screen bitmap at that moment - a CGA draws into the bitmap
+ * line by line and hands the picture over only now and then (10 times in the
+ * first 600 frames of a BIOS screen). It was kept out of states once, as
+ * derivable, and rebuilt from the bitmap after a load: that showed what the
+ * machine had drawn since the last hand-over, so a run that loaded a state
+ * drew other frames than one that never did (chimera issue 260, found by the
+ * free PC's round-trip check on the Xi 8088, and the same on an IBM PC). A
+ * state costs nothing more for it: 2,570,538 bytes before and after. */
 static int g_lastX, g_lastY, g_lastY1, g_lastY2, g_lastW, g_lastH;
 
 /* PCem's video blit: copy the machine's rectangle into the frame buffer. */
@@ -262,17 +266,6 @@ static void driver_blit(int x, int y, int y1, int y2, int w, int h)
         g_lastX = x; g_lastY = y; g_lastY1 = y1; g_lastY2 = y2;
         g_lastW = w; g_lastH = h;
         g_blits++;
-}
-
-/* The machine's screen bitmap (buffer32) IS state - PCem mallocs it - so the
- * picture is rebuilt from it by replaying the last blit. */
-ECL_EXPORT void StateLoaded(void)
-{
-        if (g_lastW > 0 && g_lastH > 0) {
-                long blits = g_blits;
-                driver_blit(g_lastX, g_lastY, g_lastY1, g_lastY2, g_lastW, g_lastH);
-                g_blits = blits;     /* a redraw is not a frame the machine drew */
-        }
 }
 
 void givealbuffer(int32_t *buf)
@@ -952,7 +945,8 @@ ECL_EXPORT int Init(void)
         g_loadError[0] = 0;
         pclogf = stderr;
 
-        g_frame = (uint32_t *)alloc_invisible((size_t)PCEM_VIDEO_MAX_W * PCEM_VIDEO_MAX_H * 4);
+        /* ordinary memory, so states carry it (see driver_blit) */
+        g_frame = (uint32_t *)calloc((size_t)PCEM_VIDEO_MAX_W * PCEM_VIDEO_MAX_H, 4);
         if (!g_frame) {
                 snprintf(g_loadError, sizeof g_loadError, "no room for the frame buffer");
                 return 0;
