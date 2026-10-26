@@ -226,8 +226,14 @@ fw="--firmware ga686bx_6BX.F2a=$roms/ga686bx/6BX.F2a \
 --firmware voodoo3_3000_3k12sd.rom=$roms/voodoo3_3000/3k12sd.rom \
 --firmware awe32.raw=$roms/awe32.raw --firmware mda.rom=$roms/mda.rom"
 
+# a game runs only in a project (Chimera, 2026-10-26), and the package wants a
+# disk in one: a blank floppy, which boots nothing, so the BIOS runs as with no
+# medium; the movie is its input and the ROMs its firmware
+python3 -c "open('$work/blank.img','wb').write(bytes(1474560))"
 # shellcheck disable=SC2086
-if "$run" "$pkg" "$roms/mda.rom" "$work/movie.txt" --settings "$settings" $fw \
+if "$run" --new-project "$work/a.chimeraProject" "$pkg" "$work/blank.img" --movie "$work/movie.txt" --settings "$settings" $fw \
+   > "$work/a.make.log" 2>&1 \
+   && "$run" --project "$work/a.chimeraProject" "$pkg" $fw \
    --screenshot $((frames-1))="$work/a.tga" > "$work/a.log" 2>&1 \
    && grep -q "^frames=$frames" "$work/a.log"; then
 	report PASS "runs $frames frames in the engine"
