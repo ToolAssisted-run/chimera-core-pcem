@@ -882,14 +882,9 @@ project records when the user departs.
 
 **Option C - `machines` + `settingOverrides`. RECOMMENDED, and it needs
 no chimera change at all.** Chimera already has exactly this mechanism
-and it was built for a different reason. Reading
-`source/gui/Chimera.Emulation.Common/Waterbox/WaterboxConfig.cs:174-209`:
-a machine's `settingOverrides` produces a narrowed declaration where
-
-```csharp
-Options = over.Options ?? decl.Options,
-Default = over.Default ?? decl.Default,
-```
+and it was built for a different reason. A machine's `settingOverrides`
+produces a narrowed declaration whose options are the override's when it
+gives some, else the declaration's, and likewise its default.
 
 **An override that supplies only `default` changes the default and
 leaves the full option list intact.** That is a preset: it fills in the
@@ -965,7 +960,7 @@ The trade-offs, stated honestly:
   in the core changes.
 - **UNCHECKED:** whether the wizard re-applies a machine's overridden
   defaults when the user switches presets mid-wizard, or only on first
-  entry. `WaterboxConfig.cs` caches narrowed declarations per machine id,
+  entry. Chimera caches narrowed declarations per machine id,
   which is consistent with re-applying, but the frontend path was not
   read. This is the one thing M4 must verify before the preset design is
   declared done.
@@ -1735,10 +1730,10 @@ Right Ctrl on LeftControl and RightControl, and Left Shift and Left Alt on
 their left names alone. They are on Number0 to Number9, Enter, Backtick,
 KeypadSubtract, KeypadAdd, KeypadDecimal, Ctrl and LeftCtrl, RightCtrl, Shift
 and LeftShift, Alt and LeftAlt. Chimera hands a key to the bindings under one
-name: the name its DistinctKeyNameOverrides gives it ("Number1", "Enter",
-"Backtick", "KeypadAdd") or else its DistinctKey name ("Up"); and unless told
+name: the name Chimera gives it ("Number1", "Enter",
+"Backtick", "KeypadAdd") or else its own name ("Up"); and unless told
 otherwise it reads the left and right Shift, Ctrl and Alt as one key each,
-"Shift", "Ctrl" and "Alt" (Input.cs, Config.MergeLAndRModifierKeys). A default
+"Shift", "Ctrl" and "Alt". A default
 binding to another name never fired, so those controls shipped unbound on the
 keyboard. Checked in the window on a virtual display: with 1, Return, left Shift and Up held, Chimera
 reports Number1, Enter, Shift and Up. Left and right names stay beside the

@@ -433,11 +433,10 @@ the boot threshold. 9000 is not an arbitrary number.
 
 The one thing the gate cannot do, because a frontend leg must not depend on a
 core package being installed. Done by hand on 2026-09-21 with a throwaway
-`[TestClass]` in `Chimera.Tests.Client.GUI`, which loaded THIS core's actual
-`waterbox.config` and `file_slots.json`, built a real `NewProjectWizard` on a
-virtual display, and for each preset called `SelectPreset(id)`, `ApplyPreset()` and
-`SettingValue(name)` for every key the preset sets. Deleted afterwards and the
-solution rebuilt without it.
+test of Chimera's own, which loaded THIS core's actual `waterbox.config` and
+`file_slots.json`, built the real New Project wizard on a virtual display,
+and for each preset chose it, applied it and read back every key the preset
+sets. Deleted afterwards.
 
 What it measured:
 
@@ -468,8 +467,8 @@ came back missing.
 
 What the probe still does not cover: it drives the settings page only. It says
 nothing about the firmware page, the files page, or what a saved project
-records - and it ran in the old C# window under Mono, on a virtual display, where the people who use Chimera run
-.NET Framework WinForms (gates.md E again, from the other direction).
+records - and it ran on a virtual display, not on the system people use
+(gates.md E again, from the other direction).
 
 ## 11. What is NOT established
 
@@ -479,11 +478,11 @@ records - and it ran in the old C# window under Mono, on a virtual display, wher
   still the stand-in, and it can drift from the frontend again. What would
   stop that permanently is a frontend test over an installed core package,
   which is a thing the frontend gate deliberately does not have. So the
-  standing risk is named rather than closed: **if `ApplySelectedPreset`
-  changes, nothing here notices.**
-- **The probe covered the settings page only**, in the old C# window under Mono, on a virtual display. It says
-  nothing about the firmware page, the files page, what a saved project
-  records, or .NET Framework WinForms.
+  standing risk is named rather than closed: **if the wizard's way of
+  applying a preset changes, nothing here notices.**
+- **The probe covered the settings page only**, on a virtual display. It says
+  nothing about the firmware page, the files page, or what a saved project
+  records.
 - **No preset was booted into an operating system.** Three of the five reach
   DISK BOOT FAILURE with nothing in the slots, which is the right answer for an
   empty machine. Whether the Windows 95 preset installs Windows 95 is untested,
