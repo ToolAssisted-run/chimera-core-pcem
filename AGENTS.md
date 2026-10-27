@@ -4,7 +4,7 @@ This repository builds the PCem IBM PC emulator as a sandboxed guest for
 Chimera (https://github.com/ToolAssisted-run/chimera), a frontend for
 tool-assisted speedruns. It produces one file, `pcem.chimeraCore`: the guest
 binary plus the declarations Chimera reads. Chimera ships no cores and
-downloads nothing; a user puts that file in Chimera's `Cores` folder.
+downloads nothing; a user puts that file in Chimera's `cores` folder.
 `docs/BUILDING.md` has the detail behind every command here.
 
 ## Layout
@@ -38,7 +38,7 @@ Linux x86-64. CI uses `ubuntu-latest`.
 
 ```sh
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends meson ninja-build build-essential cmake pkg-config python3 mono-complete xvfb libgl1-mesa-dev libx11-dev libxext-dev libasound2-dev
+sudo apt-get install -y --no-install-recommends meson ninja-build build-essential cmake pkg-config python3 libgl1-mesa-dev libx11-dev libxext-dev libasound2-dev
 
 git submodule update --init
 
@@ -52,7 +52,8 @@ meson compile -C "$MB/build/meson-cpp"
 ```
 
 The gate's engine legs need `$CHIMERA/build/meson-linux/chimera-run`, and the
-contract tests need Chimera's solution built with the .NET SDK 8.0: see
+contract tests need Chimera built with its window (Chimera's
+`tools/ci-chimera.sh`; no display is needed): see
 `docs/BUILDING.md`.
 
 ## Build
@@ -76,8 +77,8 @@ MINIBOX_DIR="$MB" sh waterbox/build-run-wbx.sh
 
 `build-package.sh -r "$CHIMERA"` already put the package in
 `$CHIMERA/build/Cores/`, the cores folder of a source checkout. For a release
-bundle, copy the `.chimeraCore` file into the `Cores` folder beside
-`Chimera.exe` (or the folder set in File > Core Manager > Change folder...);
+bundle, copy the `.chimeraCore` file into the `cores` folder beside
+Chimera's program (or the folder set in Tools > Core Manager... > Change folder...);
 Refresh List rescans. The same file works on Linux and on Windows.
 
 A package built by hand stamps `<commit>+local` (`-dirty+local` when the tree

@@ -434,8 +434,8 @@ the boot threshold. 9000 is not an arbitrary number.
 The one thing the gate cannot do, because a frontend leg must not depend on a
 core package being installed. Done by hand on 2026-09-21 with a throwaway
 `[TestClass]` in `Chimera.Tests.Client.GUI`, which loaded THIS core's actual
-`waterbox.config` and `file_slots.json`, built a real `NewProjectWizard` under
-Xvfb, and for each preset called `SelectPreset(id)`, `ApplyPreset()` and
+`waterbox.config` and `file_slots.json`, built a real `NewProjectWizard` on a
+virtual display, and for each preset called `SelectPreset(id)`, `ApplyPreset()` and
 `SettingValue(name)` for every key the preset sets. Deleted afterwards and the
 solution rebuilt without it.
 
@@ -468,7 +468,7 @@ came back missing.
 
 What the probe still does not cover: it drives the settings page only. It says
 nothing about the firmware page, the files page, or what a saved project
-records - and it ran on Mono under Xvfb, where the people who use Chimera run
+records - and it ran in the old C# window under Mono, on a virtual display, where the people who use Chimera run
 .NET Framework WinForms (gates.md E again, from the other direction).
 
 ## 11. What is NOT established
@@ -481,7 +481,7 @@ records - and it ran on Mono under Xvfb, where the people who use Chimera run
   which is a thing the frontend gate deliberately does not have. So the
   standing risk is named rather than closed: **if `ApplySelectedPreset`
   changes, nothing here notices.**
-- **The probe covered the settings page only**, on Mono under Xvfb. It says
+- **The probe covered the settings page only**, in the old C# window under Mono, on a virtual display. It says
   nothing about the firmware page, the files page, what a saved project
   records, or .NET Framework WinForms.
 - **No preset was booted into an operating system.** Three of the five reach

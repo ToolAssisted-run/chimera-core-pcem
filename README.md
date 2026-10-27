@@ -70,8 +70,8 @@ An IBM-PC-compatible Chimera core built on PCem.
 Chimera ships no cores and downloads nothing. Download the `.chimeraCore`
 package from this repository's
 [Releases](https://github.com/ToolAssisted-run/chimera-core-pcem/releases)
-page, or build it, and put it in the `Cores` folder beside `Chimera.exe`.
-File > Core Manager lists it. The same file works on Linux and on Windows.
+page, or build it, and put it in the `cores` folder beside Chimera's program.
+Tools > Core Manager... lists it. The same file works on Linux and on Windows.
 Every machine needs its ROMs, which you supply.
 
 ## Building the core
