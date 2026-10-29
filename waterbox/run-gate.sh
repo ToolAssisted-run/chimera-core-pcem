@@ -96,7 +96,7 @@ fi
 # A preset is a bundle of setting values the wizard writes INTO the settings
 # and is then finished with, and a key the core misdeclared is IGNORED and only
 # named on a status line nobody reads. So it is checked here instead.
-if python3 "$root/tools/check-presets.py" "$here/waterbox.config" \
+if python3 "$root/tools/check-presets.py" "$here/waterbox.config" "$here/languages/en.json" \
    > "$work/presets.log" 2>&1; then
 	report PASS "the presets are legal" "$(tail -1 "$work/presets.log")"
 else
@@ -121,7 +121,7 @@ cfg["presets"][1]["values"]["memSizeKB"] = "eight megabytes"
 cfg["presets"][2]["values"].pop("machine", None)
 open(sys.argv[2], "w").write(json.dumps(cfg))
 PRESETBREAK
-if python3 "$root/tools/check-presets.py" "$work/presets-broken.config" \
+if python3 "$root/tools/check-presets.py" "$work/presets-broken.config" "$here/languages/en.json" \
    > "$work/presets-neg.log" 2>&1; then
 	report FAIL "a misdeclared preset is caught" "it passed - the leg is blind"
 else
@@ -367,7 +367,7 @@ python3 - "$gw/settings" <<'PY'
 import json, sys
 p = sys.argv[1]; d = json.load(open(p)); d["cpu"] = "8088/4.77"; json.dump(d, open(p, "w"))
 PY
-if "$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$gw" 60 2>&1    | grep -q "does not take"; then
+if "$root/build/wbx/run-wbx" "$root/build/wbx/pcem.wbx" "$gw" 60 2>&1    | grep -q "error.cpu_not_taken"; then
 	report PASS "a wrong CPU is refused by name" "negative control"
 else
 	report FAIL "a wrong CPU is refused by name" "it was accepted or died silently"
@@ -718,7 +718,7 @@ else
 	report FAIL "with no clock set the guest measures the CPU's own" "got [$cown]"
 fi
 clock_run 2001 > /dev/null
-if grep -q "CPU Clock (MHz) is 2001" "$work/clock2001.log"; then
+if grep -q "error.bad_clock[^0-9]2001" "$work/clock2001.log"; then
 	report PASS "a clock past the limit is refused by name" "negative control"
 else
 	report FAIL "a clock past the limit is refused by name" "see build/gate/clock2001.log"

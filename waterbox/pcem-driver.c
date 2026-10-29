@@ -128,6 +128,11 @@ joystick_t joystick_state[MAX_JOYSTICKS];
 plat_joystick_t plat_joystick_state[MAX_PLAT_JOYSTICKS];
 int joysticks_present = 0;
 
+/* A text a person reads is a key of languages/en.json, each of its
+ * arguments after a TEXT_ARG (chimera docs/translations.md). TEXT_ARG is a
+ * string of its own so the byte after it is never read as more of its hex. */
+#define TEXT_ARG "\x1f"
+
 static char g_loadError[512];
 static int  g_width = 640, g_height = 480;
 static long g_blits;
@@ -456,7 +461,7 @@ static int apply_cpu_clock(int model, int manufacturer, int cpu)
                 return 1;
         if (mhz < 1 || mhz > 2000) {
                 snprintf(g_loadError, sizeof g_loadError,
-                         "CPU Clock (MHz) is %d: it is 0 for the CPU's own clock, or 1 to 2000", mhz);
+                         "error.bad_clock" TEXT_ARG "%d", mhz);
                 return 0;
         }
         hz = (int64_t)mhz * 1000000;
@@ -948,13 +953,13 @@ ECL_EXPORT int Init(void)
         /* ordinary memory, so states carry it (see driver_blit) */
         g_frame = (uint32_t *)calloc((size_t)PCEM_VIDEO_MAX_W * PCEM_VIDEO_MAX_H, 4);
         if (!g_frame) {
-                snprintf(g_loadError, sizeof g_loadError, "no room for the frame buffer");
+                snprintf(g_loadError, sizeof g_loadError, "error.no_frame_buffer");
                 return 0;
         }
 
         g_saveWindow = (uint8_t *)alloc_invisible(SAVEDATA_WINDOW);
         if (!g_saveWindow) {
-                snprintf(g_loadError, sizeof g_loadError, "no room for the save-data window");
+                snprintf(g_loadError, sizeof g_loadError, "error.no_save_window");
                 return 0;
         }
 
@@ -970,7 +975,7 @@ ECL_EXPORT int Init(void)
 
         screen = create_bitmap(2048, 2048);
         if (!screen) {
-                snprintf(g_loadError, sizeof g_loadError, "no room for the blit bitmap");
+                snprintf(g_loadError, sizeof g_loadError, "error.no_blit");
                 return 0;
         }
         video_blit_memtoscreen_func = driver_blit;
@@ -991,7 +996,7 @@ ECL_EXPORT int Init(void)
                         char choices[768];
                         cpu_choices(model, choices, sizeof choices);
                         snprintf(g_loadError, sizeof g_loadError,
-                                 "this machine does not take a '%s'. It takes: %s",
+                                 "error.cpu_not_taken" TEXT_ARG "%s" TEXT_ARG "%s",
                                  want, choices);
                         return 0;
                 }
@@ -1006,7 +1011,7 @@ ECL_EXPORT int Init(void)
                         extern int pci_nonburst_time, pci_burst_time;
                         if (pci_nonburst_time <= 0 || pci_burst_time <= 0) {
                                 snprintf(g_loadError, sizeof g_loadError,
-                                         "the PCI bus's timing came out as %d and %d CPU cycles at this clock",
+                                         "error.pci_timing" TEXT_ARG "%d" TEXT_ARG "%d",
                                          pci_nonburst_time, pci_burst_time);
                                 return 0;
                         }

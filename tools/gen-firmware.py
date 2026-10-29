@@ -16,9 +16,33 @@ Two things this has to get right:
 usage: gen-firmware.py <docs/PLAN.md> <out firmware.json>
 """
 import json
+import os
 import re
 import sys
 from pathlib import Path
+
+# ---- the texts a person reads ----------------------------------------------
+# Every one is a key of languages/en.json (chimera docs/translations.md):
+# text() records the key's English and returns the key, each of its
+# arguments after it behind a 0x1F; write_texts() puts them in the table,
+# beside the keys the core's code names.
+TEXTS = {}
+
+
+def text(key, english, *args):
+    if TEXTS.setdefault(key, english) != english:
+        sys.exit("%s has two texts: %r and %r" % (key, TEXTS[key], english))
+    return "\x1f".join([key] + [str(a) for a in args])
+
+
+def write_texts(path):
+    table = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {"texts": {}}
+    table["texts"].update(TEXTS)
+    table["texts"] = dict(sorted(table["texts"].items()))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(table, f, indent="\t", ensure_ascii=False)
+        f.write("\n")
 
 # SHA1 and size for every ROM, keyed by firmware id, in tools/firmware-sha1.json
 # beside this script. It is an INPUT to generation, not something written into
@@ -100,7 +124,7 @@ def entry(path, display, description, cond):
         # to be the real basename - "6BX.F2a", not "ga686bx_6BX.F2a", which
         # matches nothing on anyone's disk.
         "name": path.rsplit("/", 1)[-1],
-        "label": path,
+        "label": text("firmware.file", "%1", path),
     }
     h = HASHES.get(flat)
     if h:
@@ -130,8 +154,8 @@ def main():
     for cells in rows(plan, "| Machine (PCem's own name) | internal |"):
         display, internal, files = cells[0], cells[1].strip("`"), cells[2]
         for f in files_of(files):
-            add(f, f"{display} ROM ({f.rsplit('/', 1)[-1]})",
-                f"A ROM of the {display}, which you supply. PCem ships no ROMs.",
+            add(f, text("firmware.machine_rom", "%1 ROM (%2)", display, f.rsplit('/', 1)[-1]),
+                text("firmware.machine_rom.about", "A ROM of the %1, which you supply. PCem ships no ROMs.", display),
                 "machine", internal)
 
     for cells in rows(plan, "| Video card | internal | ROM file(s) |"):
@@ -139,16 +163,16 @@ def main():
         for f in files_of(files):
             if f.startswith("(character generator"):
                 continue
-            add(f, f"{display} video BIOS ({f.rsplit('/', 1)[-1]})",
-                f"The video BIOS of the {display}, which you supply.",
+            add(f, text("firmware.video_bios", "%1 video BIOS (%2)", display, f.rsplit('/', 1)[-1]),
+                text("firmware.video_bios.about", "The video BIOS of the %1, which you supply.", display),
                 "videoCard", internal)
 
     for cells in rows(plan, "| Device | internal | ROM file(s) |"):
         display, internal, files = cells[0], cells[1].strip("`"), cells[2]
         setting = "soundCard" if internal in ("sbawe32",) else "hddController"
         for f in files_of(files):
-            add(f, f"{display} ROM ({f.rsplit('/', 1)[-1]})",
-                f"The ROM of the {display}, which you supply.",
+            add(f, text("firmware.device_rom", "%1 ROM (%2)", display, f.rsplit('/', 1)[-1]),
+                text("firmware.device_rom.about", "The ROM of the %1, which you supply.", display),
                 setting, internal)
 
     # PLAN.md 5.4, the character generators. loadbios() tries these four
@@ -165,14 +189,15 @@ def main():
                                           "tandy1000sl2", "pc1512", "olivetti_m24",
                                           "t1000", "t1200", "t3100e"]},
         ]}
-        entries["mda.rom"]["display"] = "IBM character generator ROM (mda.rom)"
-        entries["mda.rom"]["description"] = (
+        entries["mda.rom"]["display"] = text("firmware.mda_rom", "IBM character generator ROM (mda.rom)")
+        entries["mda.rom"]["description"] = text("firmware.mda_rom.about", (
             "The 8x8 and 8x14 character shapes that an MDA or CGA-type card "
             "draws text with. Without it the machine starts with a blank "
-            "screen. PCem loads fonts without reporting a missing one.")
+            "screen. PCem loads fonts without reporting a missing one."))
 
     out = sorted(entries.values(), key=lambda e: e["id"])
     out_path.write_text(json.dumps(out, indent=2))
+    write_texts(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "waterbox", "languages", "en.json"))
     print(f"{len(out)} firmware entries -> {out_path}")
     dupes = {}
     for e in out:

@@ -11,8 +11,32 @@ usage: gen-waterbox-config.py <build/gen/tables.json> <build/gen/firmware.json>
                               <waterbox/waterbox.config>
 """
 import json
+import os
 import sys
 from pathlib import Path
+
+# ---- the texts a person reads ----------------------------------------------
+# Every one is a key of languages/en.json (chimera docs/translations.md):
+# text() records the key's English and returns the key, each of its
+# arguments after it behind a 0x1F; write_texts() puts them in the table,
+# beside the keys the core's code names.
+TEXTS = {}
+
+
+def text(key, english, *args):
+    if TEXTS.setdefault(key, english) != english:
+        sys.exit("%s has two texts: %r and %r" % (key, TEXTS[key], english))
+    return "\x1f".join([key] + [str(a) for a in args])
+
+
+def write_texts(path):
+    table = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {"texts": {}}
+    table["texts"].update(TEXTS)
+    table["texts"] = dict(sorted(table["texts"].items()))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(table, f, indent="\t", ensure_ascii=False)
+        f.write("\n")
 
 def buttons_and_axes(src_header):
     """The button order comes from waterbox/pcem-input.c, which is the single
@@ -94,9 +118,9 @@ def build_presets(labels):
     return [
         {
             "id": "dos_late_80s",
-            "label": "DOS, late 1980s - Compaq Deskpro 386",
-            "description": "A 20 MHz 386DX with VGA and a Sound Blaster Pro v2, for DOS "
-                           "games released up to the end of 1989.",
+            "label": text("preset.dos_late_80s", "DOS, late 1980s - Compaq Deskpro 386"),
+            "description": text("preset.dos_late_80s.about", "A 20 MHz 386DX with VGA and a Sound Blaster Pro v2, for DOS "
+                           "games released up to the end of 1989."),
             "values": dict(common(24), **{
                 "machine": m["deskpro386"],
                 "cpu": "i386DX/20",
@@ -113,10 +137,10 @@ def build_presets(labels):
         },
         {
             "id": "dos_early_90s",
-            "label": "DOS, early 1990s - Packard Bell PB570",
-            "description": "A Pentium 133 with the Cirrus Logic video on its "
+            "label": text("preset.dos_early_90s", "DOS, early 1990s - Packard Bell PB570"),
+            "description": text("preset.dos_early_90s.about", "A Pentium 133 with the Cirrus Logic video on its "
                 "motherboard and a Sound Blaster 16, for DOS games released "
-                "from 1990 to 1994.",
+                "from 1990 to 1994."),
             "values": dict(common(24), **{
                 "machine": m["pb570"],
                 "cpu": "Pentium 133",
@@ -132,10 +156,10 @@ def build_presets(labels):
         },
         {
             "id": "dos_late_90s",
-            "label": "DOS, late 1990s - Gigabyte GA-686BX",
-            "description": "A Pentium II/450 with an S3 Trio64 and a separate Voodoo "
+            "label": text("preset.dos_late_90s", "DOS, late 1990s - Gigabyte GA-686BX"),
+            "description": text("preset.dos_late_90s.about", "A Pentium II/450 with an S3 Trio64 and a separate Voodoo "
                 "Graphics card beside it, for DOS games released from 1995 "
-                "on.",
+                "on."),
             "values": dict(common(72, cd_channel=3), **{
                 "machine": m["ga686bx"],
                 "cpu": "Pentium II/450",
@@ -152,9 +176,9 @@ def build_presets(labels):
         },
         {
             "id": "win95b_osr2",
-            "label": "Windows 95b OSR 2 - Gigabyte GA-686BX",
-            "description": "A Pentium II/233 with 256 MB of memory and a Voodoo 3 3000."
-                " TASVideos installs Windows 95 OSR 2 on this machine.",
+            "label": text("preset.win95b_osr2", "Windows 95b OSR 2 - Gigabyte GA-686BX"),
+            "description": text("preset.win95b_osr2.about", "A Pentium II/233 with 256 MB of memory and a Voodoo 3 3000."
+                " TASVideos installs Windows 95 OSR 2 on this machine."),
             "values": dict(common(72), **{
                 "machine": m["ga686bx"],
                 "cpu": "Pentium II/233",
@@ -171,9 +195,9 @@ def build_presets(labels):
         },
         {
             "id": "winxp_sp3_home",
-            "label": "Windows XP SP3 Home Edition - Gigabyte GA-686BX",
-            "description": "A Pentium II/450 with 256 MB of memory, a Voodoo 3 3000 and"
-                " an AWE32. TASVideos installs Windows XP on this machine.",
+            "label": text("preset.winxp_sp3_home", "Windows XP SP3 Home Edition - Gigabyte GA-686BX"),
+            "description": text("preset.winxp_sp3_home.about", "A Pentium II/450 with 256 MB of memory, a Voodoo 3 3000 and"
+                " an AWE32. TASVideos installs Windows XP on this machine."),
             "values": dict(common(72), **{
                 "machine": m["ga686bx"],
                 "cpu": "Pentium II/450",
@@ -306,121 +330,121 @@ def main():
         return ["Card default"] + dcg[group][key]
 
     device_settings = [
-        {"name": "soundCardAddress", "display": "Sound Card Address",
+        {"name": "soundCardAddress", "display": text("setting.soundcardaddress", "Sound Card Address"),
          "type": "enum", "options": dev_opts("sound", "addr"),
          "default": "Card default",
-         "description": "The I/O port address of the sound card. 0x220 is where PCs of "
+         "description": text("setting.soundcardaddress.about", "The I/O port address of the sound card. 0x220 is where PCs of "
              "the time had a Sound Blaster, and almost every DOS game "
              "assumes it. 'Card default' leaves the address the chosen card "
              "was sold with. An address the chosen card cannot have is "
-             "ignored."},
-        {"name": "soundCardIrq", "display": "Sound Card IRQ",
+             "ignored.")},
+        {"name": "soundCardIrq", "display": text("setting.soundcardirq", "Sound Card IRQ"),
          "type": "enum", "options": dev_opts("sound", "irq"),
          "default": "Card default",
-         "description": "The interrupt line (IRQ) the sound card uses. Only the older "
+         "description": text("setting.soundcardirq.about", "The interrupt line (IRQ) the sound card uses. Only the older "
              "Sound Blasters let you choose it. A Sound Blaster 16 and later"
-             " read it from their own configuration."},
-        {"name": "soundCardDma", "display": "Sound Card DMA",
+             " read it from their own configuration.")},
+        {"name": "soundCardDma", "display": text("setting.soundcarddma", "Sound Card DMA"),
          "type": "enum", "options": dev_opts("sound", "dma"),
          "default": "Card default",
-         "description": "The DMA channel the sound card uses, on the cards that let you"
-             " choose it."},
-        {"name": "oplEmulator", "display": "OPL Emulator",
+         "description": text("setting.soundcarddma.about", "The DMA channel the sound card uses, on the cards that let you"
+             " choose it.")},
+        {"name": "oplEmulator", "display": text("setting.oplemulator", "OPL Emulator"),
          "type": "enum", "options": dev_opts("sound", "opl_emu"),
          "default": "Card default",
-         "description": "Which emulation of the Yamaha OPL chip the card's FM sound "
+         "description": text("setting.oplemulator.about", "Which emulation of the Yamaha OPL chip the card's FM sound "
              "uses. NukedOPL is the accurate one, and the TASVideos PCem "
              "configurations use it. DBOPL is faster. They do not sound the "
              "same and do not behave the same, so it is part of the machine,"
-             " and a movie needs the same value."},
-        {"name": "awe32EmuAddress", "display": "AWE32 EMU8000 Address",
+             " and a movie needs the same value.")},
+        {"name": "awe32EmuAddress", "display": text("setting.awe32emuaddress", "AWE32 EMU8000 Address"),
          "type": "enum", "options": dev_opts("sound", "emu_addr"),
          "default": "Card default",
-         "description": "The I/O port address of the EMU8000 wavetable chip on the "
-             "Sound Blaster AWE32. Only the AWE32 has one."},
-        {"name": "awe32OnboardRam", "display": "AWE32 Onboard RAM",
+         "description": text("setting.awe32emuaddress.about", "The I/O port address of the EMU8000 wavetable chip on the "
+             "Sound Blaster AWE32. Only the AWE32 has one.")},
+        {"name": "awe32OnboardRam", "display": text("setting.awe32onboardram", "AWE32 Onboard RAM"),
          "type": "enum", "options": dev_opts("sound", "onboard_ram"),
          "default": "Card default",
-         "description": "How much sample memory the Sound Blaster AWE32 has. Only the "
-             "AWE32 has any."},
+         "description": text("setting.awe32onboardram.about", "How much sample memory the Sound Blaster AWE32 has. Only the "
+             "AWE32 has any.")},
 
-        {"name": "videoMemory", "display": "Video Memory",
+        {"name": "videoMemory", "display": text("setting.videomemory", "Video Memory"),
          "type": "enum", "options": dev_opts("video", "memory"),
          "default": "Card default",
-         "description": "How much memory the graphics card has. It decides which video "
+         "description": text("setting.videomemory.about", "How much memory the graphics card has. It decides which video "
              "modes the card can show. Each card offers its own sizes: a "
              "Trio64 has 1, 2 or 4 MB, and an AVGA2 has 256 or 512 kB. A "
              "size the chosen card does not offer is ignored, so 'Card "
-             "default' is always safe."},
-        {"name": "videoBilinear", "display": "Video Bilinear Filtering",
+             "default' is always safe.")},
+        {"name": "videoBilinear", "display": text("setting.videobilinear", "Video Bilinear Filtering"),
          "type": "enum", "options": dev_opts("video", "bilinear"),
          "default": "Card default",
-         "description": "Bilinear texture filtering, on the 3D cards that have it (a "
+         "description": text("setting.videobilinear.about", "Bilinear texture filtering, on the 3D cards that have it (a "
                         "Voodoo Banshee or Voodoo 3). It changes the picture, so it is "
-                        "part of the machine."},
-        {"name": "videoScreenFilter", "display": "Video Screen Filter",
+                        "part of the machine.")},
+        {"name": "videoScreenFilter", "display": text("setting.videoscreenfilter", "Video Screen Filter"),
          "type": "enum", "options": dev_opts("video", "dacfilter"),
          "default": "Card default",
-         "description": "The output filter of the 3dfx cards. It blurs the picture the "
-             "way the real card's output stage did."},
-        {"name": "videoRenderThreads", "display": "Video Render Threads",
+         "description": text("setting.videoscreenfilter.about", "The output filter of the 3dfx cards. It blurs the picture the "
+             "way the real card's output stage did.")},
+        {"name": "videoRenderThreads", "display": text("setting.videorenderthreads", "Video Render Threads"),
          "type": "enum", "options": dev_opts("video", "render_threads"),
          "default": "Card default",
-         "description": "How many slices the 3dfx cards split a triangle into. In this "
+         "description": text("setting.videorenderthreads.about", "How many slices the 3dfx cards split a triangle into. In this "
              "build they are slices and not threads: the TASVideos version "
              "of PCem draws them one after another, in order. The split "
              "still changes what is drawn and how the texture cache behaves,"
              " so it is part of the machine. The TASVideos configurations "
-             "use 1."},
-        {"name": "videoRecompiler", "display": "Video Recompiler",
+             "use 1.")},
+        {"name": "videoRecompiler", "display": text("setting.videorecompiler", "Video Recompiler"),
          "type": "enum", "options": dev_opts("video", "recompiler"),
          "default": "Card default",
-         "description": "The 3dfx cards' own recompiler for drawing pixels."},
+         "description": text("setting.videorecompiler.about", "The 3dfx cards' own recompiler for drawing pixels.")},
 
-        {"name": "voodooType", "display": "Voodoo Type",
+        {"name": "voodooType", "display": text("setting.voodootype", "Voodoo Type"),
          "type": "enum", "options": dev_opts("voodoo", "type"),
          "default": "Card default",
          "exposedWhen": {"setting": "voodoo", "is": True},
-         "description": "Which 3dfx card the Voodoo Graphics setting above adds."},
-        {"name": "voodooFramebufferMemory", "display": "Voodoo Framebuffer Memory",
+         "description": text("setting.voodootype.about", "Which 3dfx card the Voodoo Graphics setting above adds.")},
+        {"name": "voodooFramebufferMemory", "display": text("setting.voodooframebuffermemory", "Voodoo Framebuffer Memory"),
          "type": "enum", "options": dev_opts("voodoo", "framebuffer_memory"),
          "default": "Card default",
          "exposedWhen": {"setting": "voodoo", "is": True},
-         "description": "The framebuffer memory of the added Voodoo card. It decides "
-             "which resolutions the card can show."},
-        {"name": "voodooTextureMemory", "display": "Voodoo Texture Memory",
+         "description": text("setting.voodooframebuffermemory.about", "The framebuffer memory of the added Voodoo card. It decides "
+             "which resolutions the card can show.")},
+        {"name": "voodooTextureMemory", "display": text("setting.voodootexturememory", "Voodoo Texture Memory"),
          "type": "enum", "options": dev_opts("voodoo", "texture_memory"),
          "default": "Card default",
          "exposedWhen": {"setting": "voodoo", "is": True},
-         "description": "The texture memory of the added Voodoo card, for each texture "
-             "unit (TMU)."},
-        {"name": "voodooBilinear", "display": "Voodoo Bilinear Filtering",
+         "description": text("setting.voodootexturememory.about", "The texture memory of the added Voodoo card, for each texture "
+             "unit (TMU).")},
+        {"name": "voodooBilinear", "display": text("setting.voodoobilinear", "Voodoo Bilinear Filtering"),
          "type": "enum", "options": dev_opts("voodoo", "bilinear"),
          "default": "Card default",
          "exposedWhen": {"setting": "voodoo", "is": True},
-         "description": "Bilinear texture filtering on the added Voodoo card."},
-        {"name": "voodooScreenFilter", "display": "Voodoo Screen Filter",
+         "description": text("setting.voodoobilinear.about", "Bilinear texture filtering on the added Voodoo card.")},
+        {"name": "voodooScreenFilter", "display": text("setting.voodooscreenfilter", "Voodoo Screen Filter"),
          "type": "enum", "options": dev_opts("voodoo", "dacfilter"),
          "default": "Card default",
          "exposedWhen": {"setting": "voodoo", "is": True},
-         "description": "The output filter of the added Voodoo card."},
-        {"name": "voodooRenderThreads", "display": "Voodoo Render Threads",
+         "description": text("setting.voodooscreenfilter.about", "The output filter of the added Voodoo card.")},
+        {"name": "voodooRenderThreads", "display": text("setting.voodoorenderthreads", "Voodoo Render Threads"),
          "type": "enum", "options": dev_opts("voodoo", "render_threads"),
          "default": "Card default",
          "exposedWhen": {"setting": "voodoo", "is": True},
-         "description": "How many slices the added Voodoo card splits a triangle into. "
-             "See Video Render Threads."},
-        {"name": "voodooSli", "display": "Voodoo SLI",
+         "description": text("setting.voodoorenderthreads.about", "How many slices the added Voodoo card splits a triangle into. "
+             "See Video Render Threads.")},
+        {"name": "voodooSli", "display": text("setting.voodoosli", "Voodoo SLI"),
          "type": "enum", "options": dev_opts("voodoo", "sli"),
          "default": "Card default",
          "exposedWhen": {"setting": "voodoo", "is": True},
-         "description": "Two Voodoo cards working together (SLI), each drawing half of "
-             "the lines. A pair of Voodoo 2 cards was sold this way."},
-        {"name": "voodooRecompiler", "display": "Voodoo Recompiler",
+         "description": text("setting.voodoosli.about", "Two Voodoo cards working together (SLI), each drawing half of "
+             "the lines. A pair of Voodoo 2 cards was sold this way.")},
+        {"name": "voodooRecompiler", "display": text("setting.voodoorecompiler", "Voodoo Recompiler"),
          "type": "enum", "options": dev_opts("voodoo", "recompiler"),
          "default": "Card default",
          "exposedWhen": {"setting": "voodoo", "is": True},
-         "description": "The added Voodoo card's own recompiler for drawing pixels."},
+         "description": text("setting.voodoorecompiler.about", "The added Voodoo card's own recompiler for drawing pixels.")},
     ]
 
     def relabel(cond):
@@ -446,103 +470,103 @@ def main():
             e["requiredWhen"] = relabel(e["requiredWhen"])
 
     settings = [
-        {"name": "system", "display": "System", "type": "enum",
+        {"name": "system", "display": text("setting.system", "System"), "type": "enum",
          "options": ["x86 PC"], "default": "x86 PC",
-         "description": "This core emulates one kind of system: an IBM-compatible x86 "
+         "description": text("setting.system.about", "This core emulates one kind of system: an IBM-compatible x86 "
              "PC. Which PC it is (the motherboard and its BIOS) is chosen "
              "with the Machine setting below. Every other part is chosen "
-             "separately."},
-        {"name": "machine", "display": "Machine (BIOS)", "type": "enum",
+             "separately.")},
+        {"name": "machine", "display": text("setting.machine", "Machine (BIOS)"), "type": "enum",
          "options": machine_opts,
          "default": label("ibmat", [m["display"] for m in machines if m["internal"] == "ibmat"][0]),
-         "description": "Which PC this is: the motherboard, its BIOS, its chipset "
-                        "and the processors it accepts. There are " + str(len(machine_opts))
-                        + " machines, from a 1981 IBM PC to a Slot 1 Pentium II board. "
-                          "It decides which BIOS ROM the project asks you for."},
-        {"name": "cpu", "display": "CPU", "type": "enum",
+         "description": text("setting.machine.about", "Which PC this is: the motherboard, its BIOS, its chipset "
+                             "and the processors it accepts. There are %1 machines, from a 1981 IBM PC to a "
+                             "Slot 1 Pentium II board. It decides which BIOS ROM the project asks you for.",
+                             len(machine_opts))},
+        {"name": "cpu", "display": text("setting.cpu", "CPU"), "type": "enum",
          "options": tables["all_cpus"], "default": "286/6",
-         "description": "The processor, by name. The list has every processor PCem "
+         "description": text("setting.cpu.about", "The processor, by name. The list has every processor PCem "
              "knows. Each machine accepts only some of them. One that the "
              "machine does not accept is refused when the project loads, "
              "with a list of those it does accept. The manufacturer follows "
-             "from the name, so there is nothing else to choose."},
+             "from the name, so there is nothing else to choose.")},
         # PCem's own FPU names, from the FPU tables in cpu_tables.c: a CPU
         # carries the list of coprocessors it will take and fpu_get_type()
         # matches this string against their internal names, falling back to
         # the CPU's first entry. So "387" on a 386DX is a 387, "387" on a
         # Pentium is the built-in unit, and nothing here can produce a machine
         # PCem would refuse.
-        {"name": "fpu", "display": "FPU", "type": "enum",
+        {"name": "fpu", "display": text("setting.fpu", "FPU"), "type": "enum",
          "options": ["none", "8087", "287", "287xl", "387", "builtin"],
          "default": "none",
-         "description": "A maths coprocessor (FPU). 'builtin' is for a 486DX and later,"
+         "description": text("setting.fpu.about", "A maths coprocessor (FPU). 'builtin' is for a 486DX and later,"
              " where it is part of the processor. 8087, 287, 287XL and 387 "
              "are the separate chips that an 8088, a 286 and a 386 could "
              "take. 'none' is for a machine sold without one. A processor "
              "with a built-in coprocessor always has it, whatever is chosen "
              "here. If the processor cannot take the chosen chip, that "
-             "processor's own first choice is used."},
-        {"name": "dynarec", "display": "Dynamic Recompiler", "type": "bool", "default": True,
-         "description": "PCem's dynamic recompiler. It is much faster than the "
+             "processor's own first choice is used.")},
+        {"name": "dynarec", "display": text("setting.dynarec", "Dynamic Recompiler"), "type": "bool", "default": True,
+         "description": text("setting.dynarec.about", "PCem's dynamic recompiler. It is much faster than the "
              "interpreter on a 486 and later. Its results are NOT exactly "
              "the same as the interpreter's, because the two calculate "
              "floating point differently. So it is part of the machine, and "
-             "a movie needs the same value."},
-        {"name": "cpuClockMHz", "display": "CPU Clock (MHz)", "type": "int",
+             "a movie needs the same value.")},
+        {"name": "cpuClockMHz", "display": text("setting.cpuclockmhz", "CPU Clock (MHz)"), "type": "int",
          "default": 0, "min": 0, "max": 2000,
-         "description": "0 means the chosen processor's own clock speed. Any other "
+         "description": text("setting.cpuclockmhz.about", "0 means the chosen processor's own clock speed. Any other "
              "value runs that processor at this speed instead, faster or "
              "slower. The chip and its timings stay as chosen, and only its "
              "speed changes. So a Pentium II/450 at 900 is a Pentium II "
              "twice as fast, which PCem has no entry for. 2000 is the most "
              "PCem's timers can hold. A faster machine takes proportionally "
-             "more work to emulate."},
-        {"name": "cpuWaitStates", "display": "CPU Wait States", "type": "int",
+             "more work to emulate.")},
+        {"name": "cpuWaitStates", "display": text("setting.cpuwaitstates", "CPU Wait States"), "type": "int",
          "default": 0, "min": 0, "max": 7,
-         "description": "Memory wait states, for the machines where PCem models them. 0"
-             " is the machine's own default."},
-        {"name": "memSizeKB", "display": "Memory (KB)", "type": "int",
+         "description": text("setting.cpuwaitstates.about", "Memory wait states, for the machines where PCem models them. 0"
+             " is the machine's own default.")},
+        {"name": "memSizeKB", "display": text("setting.memsizekb", "Memory (KB)"), "type": "int",
          "default": 4096, "min": 16, "max": 2097152,
-         "description": "The memory (RAM) in kilobytes. Every machine has its own "
+         "description": text("setting.memsizekb.about", "The memory (RAM) in kilobytes. Every machine has its own "
              "minimum, maximum and step size, and the value is limited to "
              "them exactly as PCem does it. For example an IBM AT takes at "
-             "most 16 MB and a GA-686BX at most 512 MB."},
+             "most 16 MB and a GA-686BX at most 512 MB.")},
 
-        {"name": "videoCard", "display": "Video Card", "type": "enum",
+        {"name": "videoCard", "display": text("setting.videocard", "Video Card"), "type": "enum",
          "options": [labels["videoCard"]["builtin"]]
                     + [labels["videoCard"][v["internal"]] for v in tables["video_cards"]],
          "default": labels["videoCard"]["vga"],
-         "description": "The graphics card. 'builtin' uses the video hardware on the "
+         "description": text("setting.videocard.about", "The graphics card. 'builtin' uses the video hardware on the "
              "machine's own motherboard, where it has any. The list has "
              "every card PCem emulates, from MDA to a Voodoo 3. All of them "
-             "are emulated in software."},
-        {"name": "videoSpeed", "display": "Video Speed", "type": "enum",
+             "are emulated in software.")},
+        {"name": "videoSpeed", "display": text("setting.videospeed", "Video Speed"), "type": "enum",
          "options": tables["video_speeds"], "default": "default",
-         "description": "How fast the card's bus is. 'default' leaves it to the card."},
-        {"name": "voodoo", "display": "Voodoo Graphics", "type": "bool", "default": False,
-         "description": "A 3dfx Voodoo Graphics or Voodoo 2 as a SEPARATE card added "
-             "beside the 2D card above, which is how they were sold."},
+         "description": text("setting.videospeed.about", "How fast the card's bus is. 'default' leaves it to the card.")},
+        {"name": "voodoo", "display": text("setting.voodoo", "Voodoo Graphics"), "type": "bool", "default": False,
+         "description": text("setting.voodoo.about", "A 3dfx Voodoo Graphics or Voodoo 2 as a SEPARATE card added "
+             "beside the 2D card above, which is how they were sold.")},
 
-        {"name": "soundCard", "display": "Sound Card", "type": "enum",
+        {"name": "soundCard", "display": text("setting.soundcard", "Sound Card"), "type": "enum",
          "options": [labels["soundCard"][x["internal"]] for x in tables["sound_cards"]],
          "default": labels["soundCard"]["none"],
-         "description": "The sound card in the machine."},
-        {"name": "gameBlaster", "display": "Game Blaster", "type": "bool", "default": False,
-         "description": "A Creative Game Blaster (CMS), in addition to the card above."},
-        {"name": "gus", "display": "Gravis Ultrasound", "type": "bool", "default": False,
-         "description": "A Gravis Ultrasound, in addition to the card above."},
-        {"name": "ssi2001", "display": "SSI-2001", "type": "bool", "default": False,
-         "description": "An Innovation SSI-2001, the PC card that carries the Commodore"
-             " 64's SID sound chip."},
+         "description": text("setting.soundcard.about", "The sound card in the machine.")},
+        {"name": "gameBlaster", "display": text("setting.gameblaster", "Game Blaster"), "type": "bool", "default": False,
+         "description": text("setting.gameblaster.about", "A Creative Game Blaster (CMS), in addition to the card above.")},
+        {"name": "gus", "display": text("setting.gus", "Gravis Ultrasound"), "type": "bool", "default": False,
+         "description": text("setting.gus.about", "A Gravis Ultrasound, in addition to the card above.")},
+        {"name": "ssi2001", "display": text("setting.ssi2001", "SSI-2001"), "type": "bool", "default": False,
+         "description": text("setting.ssi2001.about", "An Innovation SSI-2001, the PC card that carries the Commodore"
+             " 64's SID sound chip.")},
 
-        {"name": "hddController", "display": "Hard Disk Controller", "type": "enum",
+        {"name": "hddController", "display": text("setting.hddcontroller", "Hard Disk Controller"), "type": "enum",
          "options": [labels["hddController"][h["internal"]] for h in tables["hdd_controllers"]],
          "default": labels["hddController"]["none"],
-         "description": "The disk controller: MFM, ESDI, IDE, XT-IDE or SCSI. A machine"
-             " with IDE on its motherboard does not need one here."},
-        {"name": "hddGeometry", "display": "Hard Disk Geometry", "type": "enum",
+         "description": text("setting.hddcontroller.about", "The disk controller: MFM, ESDI, IDE, XT-IDE or SCSI. A machine"
+             " with IDE on its motherboard does not need one here.")},
+        {"name": "hddGeometry", "display": text("setting.hddgeometry", "Hard Disk Geometry"), "type": "enum",
          "options": ["Auto", "Custom"], "default": "Auto",
-         "description": "'Auto' reads the disk's cylinders, heads and sectors from the "
+         "description": text("setting.hddgeometry.about", "'Auto' reads the disk's cylinders, heads and sectors from the "
              "image itself. It first uses the values in the image's own "
              "partition table, and then the image's length. This is right "
              "for any image made by PCem, DOS, Windows or this core. A .vhd "
@@ -550,38 +574,38 @@ def main():
              "shows the three numbers, for an image without partitions whose"
              " size is not a whole number of cylinders. A wrong geometry "
              "gives a disk that does not start, not an error message, so "
-             "prefer Auto."},
-        {"name": "hddSectors", "display": "Hard Disk Sectors", "type": "int",
+             "prefer Auto.")},
+        {"name": "hddSectors", "display": text("setting.hddsectors", "Hard Disk Sectors"), "type": "int",
          "default": 0, "min": 0, "max": 255,
          "exposedWhen": {"setting": "hddGeometry", "is": "Custom"},
-         "description": "Sectors per track of the image in the hard disk slot."},
-        {"name": "hddHeads", "display": "Hard Disk Heads", "type": "int",
+         "description": text("setting.hddsectors.about", "Sectors per track of the image in the hard disk slot.")},
+        {"name": "hddHeads", "display": text("setting.hddheads", "Hard Disk Heads"), "type": "int",
          "default": 0, "min": 0, "max": 255,
          "exposedWhen": {"setting": "hddGeometry", "is": "Custom"},
-         "description": "Heads of the image in the hard disk slot."},
-        {"name": "hddCylinders", "display": "Hard Disk Cylinders", "type": "int",
+         "description": text("setting.hddheads.about", "Heads of the image in the hard disk slot.")},
+        {"name": "hddCylinders", "display": text("setting.hddcylinders", "Hard Disk Cylinders"), "type": "int",
          "default": 0, "min": 0, "max": 65535,
          "exposedWhen": {"setting": "hddGeometry", "is": "Custom"},
-         "description": "Cylinders of the image in the hard disk slot."},
-        {"name": "hdd2Geometry", "display": "Second Hard Disk Geometry", "type": "enum",
+         "description": text("setting.hddcylinders.about", "Cylinders of the image in the hard disk slot.")},
+        {"name": "hdd2Geometry", "display": text("setting.hdd2geometry", "Second Hard Disk Geometry"), "type": "enum",
          "options": ["Auto", "Custom"], "default": "Auto",
-         "description": "See Hard Disk Geometry."},
-        {"name": "hdd2Sectors", "display": "Second Hard Disk Sectors", "type": "int",
+         "description": text("setting.hdd2geometry.about", "See Hard Disk Geometry.")},
+        {"name": "hdd2Sectors", "display": text("setting.hdd2sectors", "Second Hard Disk Sectors"), "type": "int",
          "default": 0, "min": 0, "max": 255,
          "exposedWhen": {"setting": "hdd2Geometry", "is": "Custom"},
-         "description": "Sectors per track of the second hard disk."},
-        {"name": "hdd2Heads", "display": "Second Hard Disk Heads", "type": "int",
+         "description": text("setting.hdd2sectors.about", "Sectors per track of the second hard disk.")},
+        {"name": "hdd2Heads", "display": text("setting.hdd2heads", "Second Hard Disk Heads"), "type": "int",
          "default": 0, "min": 0, "max": 255,
          "exposedWhen": {"setting": "hdd2Geometry", "is": "Custom"},
-         "description": "Heads of the second hard disk."},
-        {"name": "hdd2Cylinders", "display": "Second Hard Disk Cylinders", "type": "int",
+         "description": text("setting.hdd2heads.about", "Heads of the second hard disk.")},
+        {"name": "hdd2Cylinders", "display": text("setting.hdd2cylinders", "Second Hard Disk Cylinders"), "type": "int",
          "default": 0, "min": 0, "max": 65535,
          "exposedWhen": {"setting": "hdd2Geometry", "is": "Custom"},
-         "description": "Cylinders of the second hard disk."},
+         "description": text("setting.hdd2cylinders.about", "Cylinders of the second hard disk.")},
 
-        {"name": "driveAType", "display": "Floppy Drive A", "type": "enum",
+        {"name": "driveAType", "display": text("setting.driveatype", "Floppy Drive A"), "type": "enum",
          "options": ["Auto"] + tables["fdd_types"], "default": "Auto",
-         "description": "The physical drive in bay A. 'Auto' chooses the drive that "
+         "description": text("setting.driveatype.about", "The physical drive in bay A. 'Auto' chooses the drive that "
              "fits the image given for this drive, by the image's size. An "
              "image of 360k or smaller gets a 5.25\" 360k drive, 720k a 3.5\" "
              "720k drive, 1.2M a 5.25\" 1.2M drive, 1.44M a 3.5\" 1.44M drive "
@@ -591,74 +615,74 @@ def main():
              "1.44M drive, the most common one. A drive chosen by name is "
              "always used. The drive really matters: PCem does not refuse a "
              "disk that the drive cannot read completely. It stops the head "
-             "at the drive's last track, and the machine gets read errors."},
-        {"name": "driveBType", "display": "Floppy Drive B", "type": "enum",
+             "at the drive's last track, and the machine gets read errors.")},
+        {"name": "driveBType", "display": text("setting.drivebtype", "Floppy Drive B"), "type": "enum",
          "options": ["Auto"] + tables["fdd_types"], "default": "Auto",
-         "description": "The physical drive in bay B. It works the same way as Floppy "
+         "description": text("setting.drivebtype.about", "The physical drive in bay B. It works the same way as Floppy "
              "Drive A. With nothing in bay B, Auto chooses a 5.25\" 1.2M "
-             "drive, the second drive a PC of the time usually had."},
-        {"name": "bpbDisable", "display": "Disable BPB", "type": "bool", "default": False,
-         "description": "Ignores the BIOS Parameter Block in the boot sector when "
+             "drive, the second drive a PC of the time usually had.")},
+        {"name": "bpbDisable", "display": text("setting.bpbdisable", "Disable BPB"), "type": "bool", "default": False,
+         "description": text("setting.bpbdisable.about", "Ignores the BIOS Parameter Block in the boot sector when "
              "working out a floppy disk's format. A few copy-protected disks"
-             " need this."},
+             " need this.")},
 
-        {"name": "cdDrive", "display": "CD-ROM Drive", "type": "enum",
+        {"name": "cdDrive", "display": text("setting.cddrive", "CD-ROM Drive"), "type": "enum",
          "options": ["Auto", "Fitted", "None"], "default": "Auto",
-         "description": "Whether the machine has a CD-ROM drive. 'Auto' adds one when "
+         "description": text("setting.cddrive.about", "Whether the machine has a CD-ROM drive. 'Auto' adds one when "
              "the project has a disc for the CD-ROM drive and leaves it out "
              "when it has none, which is what almost everyone wants. "
              "'Fitted' gives the machine an empty drive, so software that "
-             "looks for a drive finds one. 'None' never adds one."},
-        {"name": "cdChannel", "display": "CD-ROM Channel", "type": "int",
+             "looks for a drive finds one. 'None' never adds one.")},
+        {"name": "cdChannel", "display": text("setting.cdchannel", "CD-ROM Channel"), "type": "int",
          "exposedWhen": {"not": {"setting": "cdDrive", "is": "None"}},
          "default": 2, "min": 0, "max": 3,
-         "description": "Which IDE position the CD-ROM drive has: 0 is primary master, "
+         "description": text("setting.cdchannel.about", "Which IDE position the CD-ROM drive has: 0 is primary master, "
              "1 primary slave, 2 secondary master and 3 secondary slave. PCs"
              " of the time had it at 2. The TASVideos late-1990s "
              "configuration uses 3, so that both hard disks can have the "
-             "primary channel to themselves."},
-        {"name": "cdSpeed", "display": "CD-ROM Speed", "type": "int",
+             "primary channel to themselves.")},
+        {"name": "cdSpeed", "display": text("setting.cdspeed", "CD-ROM Speed"), "type": "int",
          "default": 24, "min": 1, "max": 72,
          "exposedWhen": {"not": {"setting": "cdDrive", "is": "None"}},
-         "description": "The drive's speed multiplier. It changes how long a read takes, "
-                        "so it is part of the machine."},
-        {"name": "cdModel", "display": "CD-ROM Model", "type": "enum",
+         "description": text("setting.cdspeed.about", "The drive's speed multiplier. It changes how long a read takes, "
+                        "so it is part of the machine.")},
+        {"name": "cdModel", "display": text("setting.cdmodel", "CD-ROM Model"), "type": "enum",
          "options": ["pcemcd", "toshiba_xm_5602b"], "default": "pcemcd",
          "exposedWhen": {"not": {"setting": "cdDrive", "is": "None"}},
-         "description": "Which drive model the machine reports that it has."},
+         "description": text("setting.cdmodel.about", "Which drive model the machine reports that it has.")},
 
-        {"name": "mouseType", "display": "Mouse", "type": "enum",
+        {"name": "mouseType", "display": text("setting.mousetype", "Mouse"), "type": "enum",
          "options": tables["mice"], "default": "Microsoft 2-button mouse (serial)",
-         "description": "Which mouse is plugged in. A machine with no PS/2 port needs a"
+         "description": text("setting.mousetype.about", "Which mouse is plugged in. A machine with no PS/2 port needs a"
              " serial mouse. The Amstrad and Olivetti mice are built into "
-             "those machines."},
-        {"name": "mouseSensitivity", "display": "Mouse Relative Sensitivity",
+             "those machines.")},
+        {"name": "mouseSensitivity", "display": text("setting.mousesensitivity", "Mouse Relative Sensitivity"),
          "type": "float", "default": 0.5,
-         "description": "Every relative mouse movement is multiplied by this number "
+         "description": text("setting.mousesensitivity.about", "Every relative mouse movement is multiplied by this number "
              "before the machine receives it. The unit is the mickey, the "
              "mouse's own step of movement. It applies to Mouse X/Y and to "
              "the movement that Mouse Position X/Y causes. It changes how "
              "far the mouse has to travel, not where the pointer ends: an "
              "absolute position still lands where it says, but it takes this"
              " many times as many steps to get there. It is the same "
-             "setting, with the same default, as in the DOSBox-X core."},
-        {"name": "joystickType", "display": "Joystick", "type": "enum",
+             "setting, with the same default, as in the DOSBox-X core.")},
+        {"name": "joystickType", "display": text("setting.joysticktype", "Joystick"), "type": "enum",
          "options": tables["joysticks"], "default": "Standard 2-button joystick(s)",
-         "description": "What is plugged into the game port."}
+         "description": text("setting.joysticktype.about", "What is plugged into the game port.")}
         ,
-        {"name": "lpt1Device", "display": "Parallel Port Device", "type": "enum",
+        {"name": "lpt1Device", "display": text("setting.lpt1device", "Parallel Port Device"), "type": "enum",
          "options": ["none", "dac", "dss"], "default": "none",
-         "description": "What is plugged into the first parallel port (LPT1): nothing, "
-             "a Covox-style sound adapter (DAC), or a Disney Sound Source."},
+         "description": text("setting.lpt1device.about", "What is plugged into the first parallel port (LPT1): nothing, "
+             "a Covox-style sound adapter (DAC), or a Disney Sound Source.")},
 
-        {"name": "fpsNumerator", "display": "Frames Per Second (numerator)", "type": "int",
+        {"name": "fpsNumerator", "display": text("setting.fpsnumerator", "Frames Per Second (numerator)"), "type": "int",
          "default": 100, "min": 1, "max": 1000,
-         "description": "How much time of the emulated PC one frame is. 100/1 means a "
+         "description": text("setting.fpsnumerator.about", "How much time of the emulated PC one frame is. 100/1 means a "
              "frame is 10 ms, which is what every published PCem movie uses."
              " It is part of the movie: the same inputs at a different rate "
-             "give a different run."},
-        {"name": "fpsDenominator", "display": "Frames Per Second (denominator)", "type": "int",
-         "default": 1, "min": 1, "max": 1000, "description": "See Frames Per Second (numerator)."},
+             "give a different run.")},
+        {"name": "fpsDenominator", "display": text("setting.fpsdenominator", "Frames Per Second (denominator)"), "type": "int",
+         "default": 1, "min": 1, "max": 1000, "description": text("setting.fpsdenominator.about", "See Frames Per Second (numerator).")},
     ]
 
     # The per-device settings go beside the card they belong to rather than in a
@@ -753,6 +777,7 @@ def main():
     }
 
     out_path.write_text(json.dumps(config, indent=2) + "\n")
+    write_texts(os.path.join(os.path.dirname(os.path.abspath(out_path)), "languages", "en.json"))
     print(f"{len(machine_opts)} machines, {len(tables['video_cards'])} video cards, "
           f"{len(tables['sound_cards'])} sound cards, "
           f"{len(tables['hdd_controllers'])} hdd controllers, "

@@ -47,8 +47,11 @@ disagree. That is gates.md mode E exactly. The frontend is the subject; a
 stand-in for it has to be checked against it at least once, which
 docs/PRESETS.md section 11 now records being done.
 
-usage: check-presets.py <waterbox.config>
+usage: check-presets.py <waterbox.config> <languages/en.json>
        check-presets.py <waterbox.config> --emit <preset id> <out settings.json>
+
+A preset's label and description are keys of the package's language tables;
+the checks above read their English, from the table named.
 
 --emit resolves a preset the way the wizard does - every declared setting at
 its default, then the preset's values written over the top - and writes the
@@ -104,7 +107,7 @@ def value_problem(decl, value):
     return f"{name} has an unknown declared type {kind!r}"
 
 
-def check(cfg):
+def check(cfg, texts):
     bad = []
     by_name = declared(cfg)
     presets = cfg.get("presets") or []
@@ -126,7 +129,12 @@ def check(cfg):
             bad.append(f"{where} has no label, so the selector would show its id")
 
         for field in ("label", "description"):
-            text = p.get(field) or ""
+            key = p.get(field) or ""
+            if key and key not in texts:
+                bad.append(f"{where}: its {field} {key!r} is not a key of the English table")
+            text = texts.get(key, "")
+            if field == "label":
+                label = text
             if any(ord(c) > 126 for c in text):
                 bad.append(f"{where}: {field} is not ASCII")
 
@@ -209,7 +217,8 @@ def main():
                                                 indent=1) + "\n")
         return 0
 
-    bad, presets, by_name = check(cfg)
+    texts = json.loads(Path(sys.argv[2]).read_text())["texts"]
+    bad, presets, by_name = check(cfg, texts)
     for b in bad:
         print("  BAD:", b)
     keys = sorted({k for p in presets for k in (p.get("values") or {})})
