@@ -50,7 +50,7 @@
 		"setting.drivebtype": "Diskettedrev B",
 		"setting.drivebtype.about": "Det fysiske drev i plads B. Det virker på samme måde som Diskettedrev A. Uden noget i plads B vælger Auto et 5,25\" 1,2M-drev, det andet drev en pc dengang oftest havde.",
 		"setting.dynarec": "Dynamisk recompiler",
-		"setting.dynarec.about": "PCems dynamiske recompiler. Den er meget hurtigere end interpreteren på en 486 og nyere. Dens resultater er IKKE helt de samme som interpreterens, fordi de to regner flydende komma forskelligt. Den er derfor en del af maskinen, og en optagelse kræver samme værdi.",
+		"setting.dynarec.about": "Den dynamiske recompiler i PCem. Den er meget hurtigere end interpreteren på en 486 og nyere. Dens resultater er IKKE helt de samme som interpreterens, fordi de to regner flydende komma forskelligt. Den er derfor en del af maskinen, og en optagelse kræver samme værdi.",
 		"setting.fpsdenominator": "Billeder pr. sekund (nævner)",
 		"setting.fpsdenominator.about": "Se Billeder pr. sekund (tæller).",
 		"setting.fpsnumerator": "Billeder pr. sekund (tæller)",
