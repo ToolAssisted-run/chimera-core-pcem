@@ -126,7 +126,6 @@ def main():
     project = {
         "id": "pcemhddgate00000"[:16],
         "title": "PCem hard disk, through Chimera",
-        "description": "written by waterbox/tests/make-project.py",
         "core": {
             "name": cfg.get("coreName", "PCem"),
             "version": cfg["version"],
@@ -149,8 +148,12 @@ def main():
             "VsyncDenominator": str(cfg.get("video", {}).get("vsyncDenominator", 1)),
         },
     }
-    with open(out, "w") as f:
-        json.dump(project, f, indent="\t")
+    # a project is a zip (Chimera's since 2026-11-02): project.json, its
+    # "inputs" the columns only, and the entries, a line each, in input.input
+    entries = project["inputs"].pop("entries", [])
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("project.json", json.dumps(project, indent="\t"))
+        z.writestr("input.input", "".join(e + "\n" for e in entries))
     return 0
 
 
