@@ -711,6 +711,7 @@ def main():
         "author": "Sarah Walker and the PCem contributors; the TASVideos fork; "
                   "chimera port by Sergio Martin",
         "url": "https://github.com/ToolAssisted-run/chimera-core-pcem",
+        "runsOn": ["windows-x86_64", "linux-x86_64", "macos-x86_64"],
         "romFile": "rom",
         "deterministic": True,
         "_memoryLayoutMiB_note":
